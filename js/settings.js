@@ -27,12 +27,6 @@
     { id: 'surprise', label: '驚き', key: '6' }
   ];
 
-  var POSES = [
-    { id: 'hips', label: '腰に手' },
-    { id: 'rub', label: '手もみ' },
-    { id: 'cross', label: '腕組み' }
-  ];
-
   var DEFAULTS = {
     micId: '',
     noiseSuppression: true,
@@ -47,10 +41,8 @@
     preset: 'ai',
     presets: clone(PRESETS),
     expression: 'normal',
-    poses: { normal: 'hips', smile: 'hips', angry: 'cross', think: 'rub', sad: 'rub', surprise: 'rub' },
     charScale: 1,
-    charY: 0,
-    removeWhite: true
+    charY: 0
   };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -86,7 +78,6 @@
   window.Settings = {
     PRESETS: PRESETS,
     EXPRESSIONS: EXPRESSIONS,
-    POSES: POSES,
     load: load,
     save: save,
     clone: clone

@@ -15,7 +15,6 @@
   ];
 
   var state = {
-    useImages: false,
     muted: false,
     testHeld: false,
     open: 0,
@@ -28,7 +27,7 @@
 
   // ===== 初期化 =====
   Background.init($('bg'));
-  Character.init($('kazuo'));
+  TracedChar.init($('charWrap'), $('charBounce'));
 
   function save() { Settings.save(S); }
 
@@ -65,7 +64,6 @@
   bindCheck('noiseSuppression', 'noiseSuppression', function () { if (AudioEngine.isRunning()) startMic(); });
   bindCheck('voiceOut', 'voiceOut', applyOutput);
   bindCheck('gate', 'gate', function () { AudioEngine.setGate(true); });
-  bindCheck('removeWhite', 'removeWhite', loadImages);
 
   function applyLayout() {
     var r = document.documentElement.style;
@@ -136,7 +134,8 @@
     box.innerHTML = '';
     Settings.EXPRESSIONS.forEach(function (e) {
       var b = document.createElement('button');
-      b.textContent = e.key + ' ' + e.label;
+      b.textContent = e.key + ' ' + e.label + (TracedChar.has(e.id) ? '' : '（未）');
+      b.title = TracedChar.has(e.id) ? '' : 'この表情の絵はまだないので、通常の絵を表示します';
       b.className = e.id === S.expression ? 'active' : '';
       b.addEventListener('click', function () { setExpression(e.id); });
       box.appendChild(b);
@@ -146,59 +145,9 @@
   function setExpression(id) {
     S.expression = id;
     save();
-    Character.setExpression(id);
-    Character.setPose(S.poses[id] || 'hips');
-    ImageChar.setExpression(id);
+    TracedChar.setExpression(id);
     renderExpressions();
   }
-
-  // ===== 画像キャラ =====
-  var EXPR_LABEL = {};
-  Settings.EXPRESSIONS.forEach(function (e) { EXPR_LABEL[e.id] = e.label; });
-  var FRAME_LABEL = { closed: '口閉じ', half: '半開き', open: '口開き', blink: 'まばたき' };
-
-  async function loadImages() {
-    $('imageSummary').textContent = '画像を読み込み中…';
-    var ok = await ImageChar.load($('imageChar'), {
-      expressions: Settings.EXPRESSIONS.map(function (e) { return e.id; }),
-      removeWhite: S.removeWhite
-    });
-    state.useImages = ok;
-    $('imageChar').hidden = !ok;
-    $('kazuo').hidden = ok;
-    $('charBounce').style.transform = '';
-    if (ok) {
-      var first = $('imageChar').querySelector('canvas');
-      var c = first && first.width ? first : null;
-      if (c) $('charWrap').style.aspectRatio = c.width + ' / ' + c.height;
-    } else {
-      $('charWrap').style.aspectRatio = '';
-    }
-    renderImageStatus();
-  }
-
-  function renderImageStatus() {
-    var st = ImageChar.status();
-    var msg = state.useImages
-      ? ImageChar.loadedCount() + '枚の画像を使っています。'
-      : 'images フォルダに normal_closed.png がないので、仮のキャラを表示しています。';
-    if (ImageChar.taintWarning()) msg += ' ファイルを直接開いているため、白い背景を消せません（URLで開くか、背景が透明なPNGを使ってください）。';
-    $('imageSummary').textContent = msg;
-    var html = '<table class="imgStatus"><tr><th>表情</th>';
-    ImageChar.FRAMES.forEach(function (f) { html += '<th>' + FRAME_LABEL[f] + '</th>'; });
-    html += '</tr>';
-    Settings.EXPRESSIONS.forEach(function (e) {
-      html += '<tr><td>' + e.key + ' ' + EXPR_LABEL[e.id] + '</td>';
-      ImageChar.FRAMES.forEach(function (f) {
-        var ok = st[e.id] && st[e.id][f] === 'ok';
-        html += '<td class="' + (ok ? 'ok' : 'missing') + '">' + (ok ? '○' : '−') + '</td>';
-      });
-      html += '</tr>';
-    });
-    $('imageStatus').innerHTML = html + '</table>';
-  }
-
-  $('reloadImages').addEventListener('click', loadImages);
 
   // ===== マイク =====
   async function startMic() {
@@ -410,10 +359,8 @@
     state.bright += (bright - state.bright) * 0.15;
     state.level += (Math.min(1, target) - state.level) * 0.1;
 
-    var charState = { open: state.open, bright: state.bright, level: state.level };
     Background.draw(t, dt, state.level);
-    if (state.useImages) ImageChar.update(t, dt, charState, $('charBounce'));
-    else Character.update(t, dt, charState);
+    TracedChar.update(t, dt, { open: state.open, bright: state.bright });
 
     // レベルメーター（-90dB〜0dB）
     var pct = function (db) { return Math.max(0, Math.min(100, (db + 90) / 90 * 100)); };
@@ -428,6 +375,5 @@
   renderPresets();
   renderExpressions();
   setExpression(S.expression);
-  loadImages();
   requestAnimationFrame(frame);
 })();

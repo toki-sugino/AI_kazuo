@@ -42,35 +42,29 @@ body.hide-cursor, body.hide-cursor * { cursor: none !important; }
   left: 50%;
   bottom: calc(4vh + var(--char-y, 0vh));
   height: calc(88vh * var(--char-scale, 1));
-  aspect-ratio: 400 / 560;
+  aspect-ratio: 765 / 1024;
+  max-width: 100vw;
   transform: translateX(-50%);
 }
 
 #charBounce {
+  position: relative;
   width: 100%;
   height: 100%;
-  transform-origin: 50% 100%;
+  transform-origin: 50% 92%;
 }
 
-#kazuo, #imageChar {
-  width: 100%;
-  height: 100%;
-  display: block;
-  overflow: visible;
-  filter: drop-shadow(0 0 1.6vh rgba(70, 130, 255, 0.35));
-}
-
-#imageChar { position: relative; }
-
-#imageChar canvas {
+#charBounce .charImg, #charBounce .charOverlay {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  display: block;
 }
 
-#imageChar[hidden], #kazuo[hidden] { display: none; }
+#charBounce .charImg[hidden] { display: none; }
+
+#charBounce { filter: drop-shadow(0 0 1.6vh rgba(70, 130, 255, 0.35)); }
 
 /* ===== 暗転と起動演出 ===== */
 #blackout {
@@ -267,12 +261,6 @@ button.danger { border-color: #8a3b3b; }
 }
 
 .exprBtns { grid-template-columns: 1fr 1fr 1fr; }
-
-table.imgStatus { border-collapse: collapse; width: 100%; font-size: 12px; }
-table.imgStatus th, table.imgStatus td { padding: 3px 4px; text-align: center; border-bottom: 1px solid rgba(120, 150, 230, 0.12); }
-table.imgStatus th:first-child, table.imgStatus td:first-child { text-align: left; }
-table.imgStatus .ok { color: #7ee2a8; }
-table.imgStatus .missing { color: #5d6a99; }
 
 table.keys { border-collapse: collapse; width: 100%; }
 table.keys td { padding: 3px 4px; vertical-align: top; border-bottom: 1px solid rgba(120, 150, 230, 0.12); }
