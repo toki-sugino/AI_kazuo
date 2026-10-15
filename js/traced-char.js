@@ -83,9 +83,18 @@
     var cx = (m.lx + m.rx) / 2;
     var top = m.mid - h * 0.12;
     var bot = top + h;
-    var cT = (4 * top - ly - ry) / 2, cB = (4 * bot - ly - ry) / 2;
-    var d = 'M' + f(lx) + ',' + f(ly) + ' Q' + f(cx) + ',' + f(cT) + ' ' + f(rx) + ',' + f(ry) +
-      ' Q' + f(cx) + ',' + f(cB) + ' ' + f(lx) + ',' + f(ly) + 'Z';
+    var d;
+    if (m.round) {
+      // 丸い口（驚きなど）：角を丸くした形
+      var k = w * 0.04;
+      var rT = (8 * top - ly - ry) / 6, rB = (8 * bot - ly - ry) / 6;
+      d = 'M' + f(lx) + ',' + f(ly) + ' C' + f(lx + k) + ',' + f(rT) + ' ' + f(rx - k) + ',' + f(rT) + ' ' + f(rx) + ',' + f(ry) +
+        ' C' + f(rx - k) + ',' + f(rB) + ' ' + f(lx + k) + ',' + f(rB) + ' ' + f(lx) + ',' + f(ly) + 'Z';
+    } else {
+      var cT = (4 * top - ly - ry) / 2, cB = (4 * bot - ly - ry) / 2;
+      d = 'M' + f(lx) + ',' + f(ly) + ' Q' + f(cx) + ',' + f(cT) + ' ' + f(rx) + ',' + f(ry) +
+        ' Q' + f(cx) + ',' + f(cB) + ' ' + f(lx) + ',' + f(ly) + 'Z';
+    }
     el.line.setAttribute('d', d);
     el.fill.setAttribute('d', d);
     el.clipPath.setAttribute('d', d);

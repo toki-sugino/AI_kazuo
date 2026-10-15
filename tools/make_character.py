@@ -10,6 +10,8 @@
   python tools/make_character.py 元画像.png characters/smile.svg --mouth 318,505,460,563
 
   --mouth は消す口の範囲（楕円が収まる四角の 左,上,右,下。元画像のピクセル座標）。
+  口のすぐ近くに残したい線がある時は --mouth-poly "x,y x,y x,y ..." で多角形を指定する。
+  どちらも何回でも指定できる。
   最後に表示される「肌の色」を characters/config.js の skin に書く。
   口の位置（lx,ly,rx,ry,mid）とまばたきの位置も、元画像のピクセル座標で config.js に書く。
 """
@@ -58,7 +60,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('src')
     ap.add_argument('dst')
-    ap.add_argument('--mouth', help='消す口の範囲 左,上,右,下')
+    ap.add_argument('--mouth', action='append', default=[], help='消す口の範囲（楕円） 左,上,右,下')
+    ap.add_argument('--mouth-poly', action='append', default=[], help='消す口の範囲（多角形） "x,y x,y ..."')
     ap.add_argument('--keep-color', action='store_true', help='青一色にしない')
     ap.add_argument('--preview', help='確認用PNGの保存先')
     args = ap.parse_args()
@@ -68,13 +71,28 @@ def main():
         im = to_blue(im)
 
     skin = None
-    if args.mouth:
-        x0, y0, x1, y1 = [int(v) for v in args.mouth.split(',')]
+    shapes = [('ellipse', [int(v) for v in m.split(',')]) for m in args.mouth]
+    for poly in args.mouth_poly:
+        pts = [tuple(int(v) for v in p.split(',')) for p in poly.split()]
+        shapes.append(('poly', pts))
+    if shapes:
+        # 口の周りの肌の色を、最初の範囲の外側から拾う
+        kind, sh = shapes[0]
+        if kind == 'ellipse':
+            x0, y0, x1, y1 = sh
+        else:
+            xs, ys = [p[0] for p in sh], [p[1] for p in sh]
+            x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
         a = np.asarray(im).astype(int)
         cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
-        ring = [a[y0 - 6, cx], a[y1 + 6, cx], a[cy, x0 - 4], a[cy, x1 + 4]]
+        ring = [a[y0 - 6, cx], a[y1 + 6, cx], a[cy, x0 - 4], a[cy, x1 + 4], a[y0 - 6, (x0 + cx) // 2], a[y1 + 6, (cx + x1) // 2]]
         skin = tuple(int(v) for v in np.median(np.array(ring), axis=0))
-        ImageDraw.Draw(im).ellipse([x0, y0, x1, y1], fill=skin)
+        draw = ImageDraw.Draw(im)
+        for kind, sh in shapes:
+            if kind == 'ellipse':
+                draw.ellipse(sh, fill=skin)
+            else:
+                draw.polygon(sh, fill=skin)
 
     mask = background_mask(im)
     rgba = np.dstack([np.asarray(im), np.where(mask, 0, 255).astype('uint8')])

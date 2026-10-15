@@ -21,10 +21,9 @@
   var EXPRESSIONS = [
     { id: 'normal', label: '通常', key: '1' },
     { id: 'smile', label: '笑顔', key: '2' },
-    { id: 'angry', label: '怒り', key: '3' },
-    { id: 'think', label: '考え・疑い', key: '4' },
-    { id: 'sad', label: '困り・悲しみ', key: '5' },
-    { id: 'surprise', label: '驚き', key: '6' }
+    { id: 'think', label: '悩み', key: '3' },
+    { id: 'surprise', label: '驚き', key: '4' },
+    { id: 'assert', label: '断定', key: '5' }
   ];
 
   var DEFAULTS = {
