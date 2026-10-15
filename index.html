@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AIカズオ</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 客席に見せる画面 -->
+  <div id="screen">
+    <canvas id="bg"></canvas>
+    <div id="charWrap">
+      <div id="charBounce">
+        <svg id="kazuo" viewBox="0 0 400 560" aria-label="AIカズオ"></svg>
+        <div id="imageChar" hidden></div>
+      </div>
+    </div>
+  </div>
+  <div id="blackout"></div>
+
+  <!-- 最初に出る開始カード -->
+  <div id="startCard">
+    <h1>AIカズオ</h1>
+    <p>マイクの音に合わせて口が動きます。<br>ブラウザに「マイクの使用」を聞かれたら「許可」を押してください。</p>
+    <button id="startMic" class="primary">マイクを使って開始</button>
+    <button id="startNoMic">マイクなしで画面だけ表示</button>
+    <p id="startError" class="error"></p>
+  </div>
+
+  <!-- 操作パネル（Hキーで表示/非表示） -->
+  <aside id="panel">
+    <header>
+      <strong>AIカズオ 操作パネル</strong>
+      <button id="panelClose" title="パネルを隠す (H)">隠す (H)</button>
+    </header>
+
+    <section>
+      <h2>マイク</h2>
+      <div class="row">
+        <button id="micToggle">マイク開始</button>
+        <span id="micStatus" class="muted">停止中</span>
+      </div>
+      <label>使うマイク
+        <select id="micSelect"><option value="">既定のマイク</option></select>
+      </label>
+      <label class="check"><input type="checkbox" id="noiseSuppression"> ノイズ抑制（客席のざわざわを減らす）</label>
+      <div class="meter" title="入力レベル">
+        <div id="meterBar"></div>
+        <div id="meterThreshold"></div>
+      </div>
+      <p class="hint">緑の棒が白い線を越えると口が動きます。</p>
+      <label>マイク感度 <output id="micGainOut"></output>
+        <input type="range" id="micGain" min="-12" max="24" step="1">
+      </label>
+      <label>反応しきい値（上げると小さい音に反応しない） <output id="thresholdOut"></output>
+        <input type="range" id="threshold" min="-85" max="-15" step="1">
+      </label>
+    </section>
+
+    <section>
+      <h2>口パク</h2>
+      <label>口の開きやすさ <output id="rangeOut"></output>
+        <input type="range" id="range" min="8" max="45" step="1">
+      </label>
+      <label>口の大きさ <output id="mouthScaleOut"></output>
+        <input type="range" id="mouthScale" min="0.4" max="1.6" step="0.05">
+      </label>
+      <div class="row">
+        <button id="testMouth">押している間テスト口パク (T)</button>
+        <button id="muteBtn">ミュート (M)</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>声（ボイスチェンジャー）</h2>
+      <label class="check warn"><input type="checkbox" id="voiceOut"> PCから声を出す（スピーカーへ）</label>
+      <p class="hint">ハウリング（キーン音）に注意。最初はヘッドホンで確認してください。</p>
+      <label id="outSelectLabel">音を出す先
+        <select id="outSelect"><option value="">既定のスピーカー</option></select>
+      </label>
+      <label>音量 <output id="volumeOut"></output>
+        <input type="range" id="volume" min="0" max="1.5" step="0.05">
+      </label>
+      <div class="presetBtns" id="presetBtns"></div>
+      <div id="presetSliders"></div>
+      <div class="row">
+        <button id="presetReset">この声を初期設定に戻す</button>
+      </div>
+      <label class="check"><input type="checkbox" id="gate"> 小さい音は流さない（ゲート）</label>
+    </section>
+
+    <section>
+      <h2>表情</h2>
+      <div class="exprBtns" id="exprBtns"></div>
+    </section>
+
+    <section>
+      <h2>表示</h2>
+      <label>キャラの大きさ <output id="charScaleOut"></output>
+        <input type="range" id="charScale" min="0.5" max="1.6" step="0.02">
+      </label>
+      <label>キャラの上下位置 <output id="charYOut"></output>
+        <input type="range" id="charY" min="-40" max="40" step="1">
+      </label>
+      <div class="row">
+        <button id="bootBtn">暗転 / 起動 (B)</button>
+        <button id="fsBtn">全画面 (F)</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>キャラ画像</h2>
+      <p id="imageSummary" class="hint"></p>
+      <label class="check"><input type="checkbox" id="removeWhite"> 画像の白い背景を透明にする</label>
+      <div id="imageStatus"></div>
+      <div class="row"><button id="reloadImages">画像を読み込み直す</button></div>
+    </section>
+
+    <section>
+      <h2>キー操作</h2>
+      <table class="keys">
+        <tr><td>1〜6</td><td>表情（1 通常 / 2 笑顔 / 3 怒り / 4 考え・疑い / 5 困り・悲しみ / 6 驚き）</td></tr>
+        <tr><td>Q W E R</td><td>声（Q 素の声 / W AIの声 / E 高い声 / R 高いAIの声）</td></tr>
+        <tr><td>B</td><td>暗転 ⇔ 起動演出</td></tr>
+        <tr><td>M</td><td>ミュート（口も声も止める）</td></tr>
+        <tr><td>T（長押し）</td><td>テスト口パク</td></tr>
+        <tr><td>H</td><td>このパネルを隠す / 出す</td></tr>
+        <tr><td>F</td><td>全画面</td></tr>
+      </table>
+    </section>
+  </aside>
+
+  <script src="js/settings.js"></script>
+  <script src="js/background.js"></script>
+  <script src="js/character.js"></script>
+  <script src="js/image-char.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
