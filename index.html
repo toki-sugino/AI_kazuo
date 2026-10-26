@@ -3,37 +3,59 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AIカズオ</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>AIカズオ（操作画面）</title>
+  <link rel="stylesheet" href="css/control.css">
 </head>
 <body>
-  <!-- 客席に見せる画面 -->
-  <div id="screen">
-    <canvas id="bg"></canvas>
-    <div id="charWrap">
-      <div id="charBounce">
+  <header id="topbar">
+    <strong>AIカズオ 操作画面</strong>
+    <button id="openScreen" class="primary">投影画面を開く</button>
+    <span id="screenStatus" class="pill">投影画面：未接続</span>
+    <span id="micPill" class="pill">マイク：停止中</span>
+  </header>
+
+  <main id="layout">
+    <!-- 左：プレビューと本番中に使うボタン -->
+    <section id="liveCol">
+      <div class="card">
+        <h2>客席に映っている画面</h2>
+        <div id="previewBox"><iframe id="preview" src="screen.html?preview=1" title="投影画面のプレビュー" tabindex="-1"></iframe></div>
+        <div class="meter" title="入力レベル">
+          <div id="meterBar"></div>
+          <div id="meterThreshold"></div>
+        </div>
       </div>
-    </div>
-  </div>
-  <div id="blackout"></div>
 
-  <!-- 最初に出る開始カード -->
-  <div id="startCard">
-    <h1>AIカズオ</h1>
-    <p>マイクの音に合わせて口が動きます。<br>ブラウザに「マイクの使用」を聞かれたら「許可」を押してください。</p>
-    <button id="startMic" class="primary">マイクを使って開始</button>
-    <button id="startNoMic">マイクなしで画面だけ表示</button>
-    <p id="startError" class="error"></p>
-  </div>
+      <div class="card">
+        <h2>表情 <span class="keyhint">1〜5</span></h2>
+        <div class="btnGrid five" id="exprBtns"></div>
+        <h2>声 <span class="keyhint">Q W E R</span></h2>
+        <div class="btnGrid four" id="presetBtns"></div>
+        <div class="btnGrid three">
+          <button id="bootBtn">暗転 / 起動 <kbd>B</kbd></button>
+          <button id="muteBtn">ミュート <kbd>M</kbd></button>
+          <button id="testMouth">テスト口パク <kbd>T</kbd></button>
+        </div>
+      </div>
+    </section>
 
-  <!-- 操作パネル（Hキーで表示/非表示） -->
-  <aside id="panel">
-    <header>
-      <strong>AIカズオ 操作パネル</strong>
-      <button id="panelClose" title="パネルを隠す (H)">隠す (H)</button>
-    </header>
+    <!-- 中：写真 -->
+    <section id="photoCol" class="card">
+      <h2>写真 <span class="keyhint">← → で前後の写真を出す ／ 0 で消す</span></h2>
+      <div id="dropZone">
+        <p>ここに写真をドラッグ＆ドロップ</p>
+        <label class="fileBtn">写真を選ぶ<input type="file" id="photoInput" accept="image/*" multiple hidden></label>
+        <p class="hint">写真はこのPCのブラウザの中にだけ保存されます（ネットには公開されません）。</p>
+      </div>
+      <div class="row">
+        <button id="hidePhoto">写真を消す <kbd>0</kbd></button>
+        <span id="photoNow" class="muted">表示中：なし</span>
+      </div>
+      <ol id="photoList"></ol>
+    </section>
 
-    <section>
+    <!-- 右：設定 -->
+    <aside id="settingsCol" class="card">
       <h2>マイク</h2>
       <div class="row">
         <button id="micToggle">マイク開始</button>
@@ -43,20 +65,14 @@
         <select id="micSelect"><option value="">既定のマイク</option></select>
       </label>
       <label class="check"><input type="checkbox" id="noiseSuppression"> ノイズ抑制（客席のざわざわを減らす）</label>
-      <div class="meter" title="入力レベル">
-        <div id="meterBar"></div>
-        <div id="meterThreshold"></div>
-      </div>
-      <p class="hint">緑の棒が白い線を越えると口が動きます。</p>
       <label>マイク感度 <output id="micGainOut"></output>
         <input type="range" id="micGain" min="-12" max="24" step="1">
       </label>
       <label>反応しきい値（上げると小さい音に反応しない） <output id="thresholdOut"></output>
         <input type="range" id="threshold" min="-85" max="-15" step="1">
       </label>
-    </section>
+      <p class="hint">左上のメーターの緑の棒が白い線を越えると口が動きます。</p>
 
-    <section>
       <h2>口パク</h2>
       <label>口の開きやすさ <output id="rangeOut"></output>
         <input type="range" id="range" min="8" max="45" step="1">
@@ -64,13 +80,7 @@
       <label>口の大きさ <output id="mouthScaleOut"></output>
         <input type="range" id="mouthScale" min="0.4" max="1.6" step="0.05">
       </label>
-      <div class="row">
-        <button id="testMouth">押している間テスト口パク (T)</button>
-        <button id="muteBtn">ミュート (M)</button>
-      </div>
-    </section>
 
-    <section>
       <h2>声（ボイスチェンジャー）</h2>
       <label class="check warn"><input type="checkbox" id="voiceOut"> PCから声を出す（スピーカーへ）</label>
       <p class="hint">ハウリング（キーン音）に注意。最初はヘッドホンで確認してください。</p>
@@ -80,51 +90,47 @@
       <label>音量 <output id="volumeOut"></output>
         <input type="range" id="volume" min="0" max="1.5" step="0.05">
       </label>
-      <div class="presetBtns" id="presetBtns"></div>
+      <p class="hint" id="presetName"></p>
       <div id="presetSliders"></div>
       <div class="row">
         <button id="presetReset">この声を初期設定に戻す</button>
       </div>
       <label class="check"><input type="checkbox" id="gate"> 小さい音は流さない（ゲート）</label>
-    </section>
 
-    <section>
-      <h2>表情</h2>
-      <div class="exprBtns" id="exprBtns"></div>
-    </section>
-
-    <section>
-      <h2>表示</h2>
-      <label>キャラの大きさ <output id="charScaleOut"></output>
+      <h2>キャラの位置</h2>
+      <label>大きさ <output id="charScaleOut"></output>
         <input type="range" id="charScale" min="0.5" max="1.6" step="0.02">
       </label>
-      <label>キャラの上下位置 <output id="charYOut"></output>
+      <label>上下 <output id="charYOut"></output>
         <input type="range" id="charY" min="-40" max="40" step="1">
       </label>
-      <div class="row">
-        <button id="bootBtn">暗転 / 起動 (B)</button>
-        <button id="fsBtn">全画面 (F)</button>
-      </div>
-    </section>
 
-    <section>
       <h2>キー操作</h2>
       <table class="keys">
         <tr><td>1〜5</td><td>表情（1 通常 / 2 笑顔 / 3 悩み / 4 驚き / 5 断定）</td></tr>
         <tr><td>Q W E R</td><td>声（Q 素の声 / W AIの声 / E 高い声 / R 高いAIの声）</td></tr>
+        <tr><td>← →</td><td>前 / 次の写真を出す</td></tr>
+        <tr><td>0</td><td>写真を消す</td></tr>
         <tr><td>B</td><td>暗転 ⇔ 起動演出</td></tr>
         <tr><td>M</td><td>ミュート（口も声も止める）</td></tr>
         <tr><td>T（長押し）</td><td>テスト口パク</td></tr>
-        <tr><td>H</td><td>このパネルを隠す / 出す</td></tr>
-        <tr><td>F</td><td>全画面</td></tr>
       </table>
-    </section>
-  </aside>
+      <p class="hint">投影画面を選んでいる時にキーを押しても、ここで押したのと同じになります（F だけは投影画面の全画面切り替え）。</p>
+    </aside>
+  </main>
+
+  <!-- 最初に出る開始カード -->
+  <div id="startCard">
+    <h1>AIカズオ</h1>
+    <p>マイクの音に合わせて口が動きます。<br>ブラウザに「マイクの使用」を聞かれたら「許可」を押してください。</p>
+    <button id="startMic" class="primary">マイクを使って開始</button>
+    <button id="startNoMic">マイクなしで開始</button>
+    <p id="startError" class="error"></p>
+  </div>
 
   <script src="js/settings.js"></script>
-  <script src="js/background.js"></script>
   <script src="characters/config.js"></script>
-  <script src="js/traced-char.js"></script>
+  <script src="js/photos.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/app.js"></script>
 </body>

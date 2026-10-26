@@ -1,0 +1,236 @@
+/* 操作画面（パソコン側） */
+:root {
+  --bg: #070b19;
+  --card: #0d1430;
+  --fg: #dfe6ff;
+  --muted: #8f9ccc;
+  --accent: #4f86ff;
+  --accent-2: #2a4fae;
+  --warn: #ffb15c;
+  --ok: #7ee2a8;
+  --line: rgba(120, 150, 230, 0.25);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Yu Gothic UI", "Meiryo", "Hiragino Sans", system-ui, sans-serif;
+  font-size: 13px;
+}
+
+#topbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: rgba(7, 11, 25, 0.97);
+  border-bottom: 1px solid var(--line);
+}
+
+#topbar strong { font-size: 15px; margin-right: 6px; }
+
+.pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.pill.on { color: var(--ok); border-color: rgba(126, 226, 168, .5); }
+
+#layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 1.3fr) minmax(260px, 1fr) minmax(280px, 340px);
+  gap: 12px;
+  padding: 12px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  #layout { grid-template-columns: 1fr 1fr; }
+  #settingsCol { grid-column: 1 / -1; }
+}
+
+@media (max-width: 720px) {
+  #layout { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+#liveCol { display: grid; gap: 12px; }
+
+h2 {
+  margin: 14px 0 8px;
+  font-size: 14px;
+  color: #9fbaff;
+}
+
+.card > h2:first-child { margin-top: 0; }
+
+.keyhint { font-size: 11px; color: var(--muted); font-weight: normal; margin-left: 6px; }
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 4px;
+  margin-left: 4px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 11px;
+  text-align: center;
+  opacity: .8;
+}
+
+/* プレビュー（投影画面を小さく表示） */
+#previewBox {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: #000;
+}
+
+#preview {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 720px;
+  border: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.meter {
+  position: relative;
+  height: 12px;
+  margin-top: 8px;
+  background: #0b1229;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+#meterBar { height: 100%; width: 0; background: linear-gradient(90deg, #2fbf71, #9be15d); }
+#meterBar.open { background: linear-gradient(90deg, #2fbf71, #ffe066); }
+#meterThreshold { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #fff; }
+
+.btnGrid { display: grid; gap: 6px; margin: 6px 0; }
+.btnGrid.five { grid-template-columns: repeat(5, 1fr); }
+.btnGrid.four { grid-template-columns: repeat(4, 1fr); }
+.btnGrid.three { grid-template-columns: repeat(3, 1fr); margin-top: 12px; }
+.btnGrid button { padding: 10px 6px; font-size: 13px; }
+
+button, .fileBtn {
+  padding: 7px 10px;
+  background: #16214a;
+  color: var(--fg);
+  border: 1px solid #2c3d7a;
+  border-radius: 7px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover, .fileBtn:hover { background: #1d2c60; }
+button.primary { background: var(--accent-2); border-color: var(--accent); }
+button.active { background: var(--accent); border-color: #9fbaff; color: #fff; }
+button.off { background: #000; border-color: #666; color: #fff; }
+
+/* 写真 */
+#dropZone {
+  padding: 14px;
+  border: 2px dashed var(--line);
+  border-radius: 10px;
+  text-align: center;
+}
+
+#dropZone.over { border-color: var(--accent); background: rgba(79, 134, 255, .08); }
+#dropZone p { margin: 4px 0 10px; }
+.fileBtn { display: inline-block; }
+
+#photoList {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+#photoList li {
+  display: grid;
+  grid-template-columns: 26px 88px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#photoList li:hover { background: rgba(79, 134, 255, .08); }
+#photoList li.showing { border-color: var(--accent); background: rgba(79, 134, 255, .18); }
+#photoList .num { font-weight: bold; color: #9fbaff; text-align: center; }
+#photoList img { width: 88px; height: 60px; object-fit: contain; background: #000; border-radius: 4px; }
+#photoList .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#photoList .ops { display: flex; gap: 4px; }
+#photoList .ops button { padding: 4px 7px; }
+
+/* 設定 */
+#settingsCol label { display: block; margin: 8px 0; }
+#settingsCol label.check { display: flex; gap: 8px; align-items: center; }
+#settingsCol label.warn { color: var(--warn); font-weight: bold; }
+#settingsCol select, #settingsCol input[type="range"] { display: block; width: 100%; margin-top: 4px; }
+#settingsCol select {
+  padding: 5px;
+  background: #0f1736;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+#settingsCol output { float: right; color: var(--muted); }
+
+.hint { margin: 4px 0 8px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.muted { color: var(--muted); }
+.error { color: #ff8a8a; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+
+table.keys { border-collapse: collapse; width: 100%; }
+table.keys td { padding: 3px 4px; vertical-align: top; border-bottom: 1px solid rgba(120, 150, 230, 0.12); }
+table.keys td:first-child { white-space: nowrap; color: #9fbaff; font-weight: bold; }
+
+/* 開始カード */
+#startCard {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(460px, calc(100vw - 32px));
+  padding: 28px;
+  background: #0d1430;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  text-align: center;
+  z-index: 20;
+  box-shadow: 0 10px 60px rgba(0, 0, 0, .8);
+}
+
+#startCard h1 { margin: 0 0 8px; font-size: 26px; letter-spacing: .1em; }
+#startCard p { line-height: 1.7; color: var(--muted); }
+#startCard button { display: block; width: 100%; margin-top: 10px; padding: 12px; font-size: 16px; }
+#startCard[hidden] { display: none; }

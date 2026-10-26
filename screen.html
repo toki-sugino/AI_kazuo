@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AIカズオ（投影画面）</title>
+  <link rel="stylesheet" href="css/screen.css">
+</head>
+<body>
+  <div id="screen">
+    <canvas id="bg"></canvas>
+    <div id="photoWrap" aria-hidden="true">
+      <div id="photoFrame"><img id="photoImg" alt=""></div>
+    </div>
+    <div id="charWrap">
+      <div id="charBounce"></div>
+    </div>
+  </div>
+  <div id="blackout"></div>
+
+  <div id="hint">
+    <p id="hintMain">ここをクリックすると全画面になります</p>
+    <p id="hintSub">このウィンドウを液晶（プロジェクター）の画面に移してからクリックしてください。<br>
+      操作はパソコン側の「操作画面」で行います。</p>
+  </div>
+
+  <script src="js/background.js"></script>
+  <script src="characters/config.js"></script>
+  <script src="js/traced-char.js"></script>
+  <script src="js/screen.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-// 画面全体の制御：パネル操作・キー操作・毎フレームの更新
+// 操作画面：マイク・声・表情・写真・暗転を操作し、投影画面へ指示を送る
 (function () {
   'use strict';
 
@@ -22,15 +22,103 @@
     level: 0,
     db: -100,
     gateOpenUntil: 0,
-    off: false
+    off: false,
+    photoId: null
   };
-
-  // ===== 初期化 =====
-  Background.init($('bg'));
-  TracedChar.init($('charWrap'), $('charBounce'));
 
   function save() { Settings.save(S); }
 
+  // ===== 投影画面とのやりとり =====
+  // 投影画面（とプレビュー）は2秒ごとに hello を送ってくる。届いた相手に指示を送る
+  var targets = [];
+  var displayWin = null;
+
+  function trusted(e) {
+    return e.origin === location.origin || location.protocol === 'file:';
+  }
+
+  window.addEventListener('message', function (e) {
+    var m = e.data;
+    if (!m || typeof m.t !== 'string' || !trusted(e) || !e.source) return;
+    if (m.t === 'hello') {
+      var tg = targets.find(function (x) { return x.win === e.source; });
+      if (!tg) {
+        tg = { win: e.source, preview: !!m.preview, last: 0 };
+        targets.push(tg);
+        // この操作画面より前から開いている投影画面なら（操作画面を読み込み直した時）、その状態を引き継ぐ
+        if (!m.preview && m.age > performance.now()) adoptScreenState(m);
+        sendFullState(tg.win);
+      }
+      tg.last = performance.now();
+      updateScreenStatus();
+    } else if (m.t === 'key') {
+      if (targets.some(function (x) { return x.win === e.source; })) handleKey(m);
+    }
+  });
+
+  function adoptScreenState(m) {
+    if (m.off !== state.off) setOffUi(!!m.off);
+    if (m.photoId !== state.photoId) {
+      state.photoId = m.photoId == null ? null : m.photoId;
+      renderPhotos();
+    }
+  }
+
+  function post(win, m) {
+    try { win.postMessage(m, '*'); } catch (e) { /* 閉じている */ }
+  }
+
+  function sendAll(m) {
+    var now = performance.now();
+    targets = targets.filter(function (x) { return !x.win.closed && now - x.last < 7000; });
+    targets.forEach(function (x) { post(x.win, m); });
+  }
+
+  function stateMsg() {
+    return { t: 'state', expression: S.expression, charScale: S.charScale, charY: S.charY, off: state.off };
+  }
+
+  function sendState() { sendAll(stateMsg()); }
+
+  function sendFullState(win) {
+    post(win, stateMsg());
+    if (state.photoId != null) {
+      var p = photoById(state.photoId);
+      if (p) post(win, { t: 'photo', id: p.id, blob: p.blob });
+    }
+  }
+
+  function updateScreenStatus() {
+    var now = performance.now();
+    var live = targets.some(function (x) { return !x.preview && !x.win.closed && now - x.last < 5000; });
+    var el = $('screenStatus');
+    el.textContent = live ? '投影画面：接続中' : '投影画面：未接続';
+    el.classList.toggle('on', live);
+  }
+  setInterval(updateScreenStatus, 1000);
+
+  // 投影画面を開く。液晶がつながっていれば、そちらの画面に開く
+  async function openScreen() {
+    if (displayWin && !displayWin.closed) { displayWin.focus(); return; }
+    var feat = 'popup,width=1280,height=720';
+    try {
+      if ('getScreenDetails' in window) {
+        var d = await window.getScreenDetails();
+        var other = d.screens.filter(function (s) { return s !== d.currentScreen; })[0];
+        if (other) {
+          feat = 'popup,left=' + other.availLeft + ',top=' + other.availTop +
+            ',width=' + other.availWidth + ',height=' + other.availHeight;
+        }
+      }
+    } catch (e) { /* 画面の情報を使えない時は普通に開く */ }
+    displayWin = window.open('screen.html', 'aiKazuoScreen', feat);
+    if (!displayWin) {
+      alert('投影画面を開けませんでした。アドレスバー右端の「ポップアップがブロックされました」から、このサイトのポップアップを許可して、もう一度押してください。');
+    }
+  }
+  $('openScreen').addEventListener('click', openScreen);
+
+  // ===== 設定のつまみ =====
   function bindRange(id, key, fmt, onChange) {
     var input = $(id), out = $(id + 'Out');
     input.value = S[key];
@@ -59,18 +147,11 @@
   bindRange('range', 'range', function (v) { return v + ' dB'; });
   bindRange('mouthScale', 'mouthScale', function (v) { return Math.round(v * 100) + '%'; });
   bindRange('volume', 'volume', function (v) { return Math.round(v * 100) + '%'; }, applyOutput);
-  bindRange('charScale', 'charScale', function (v) { return Math.round(v * 100) + '%'; }, applyLayout);
-  bindRange('charY', 'charY', function (v) { return v; }, applyLayout);
+  bindRange('charScale', 'charScale', function (v) { return Math.round(v * 100) + '%'; }, sendState);
+  bindRange('charY', 'charY', function (v) { return v; }, sendState);
   bindCheck('noiseSuppression', 'noiseSuppression', function () { if (AudioEngine.isRunning()) startMic(); });
   bindCheck('voiceOut', 'voiceOut', applyOutput);
   bindCheck('gate', 'gate', function () { AudioEngine.setGate(true); });
-
-  function applyLayout() {
-    var r = document.documentElement.style;
-    r.setProperty('--char-scale', S.charScale);
-    r.setProperty('--char-y', S.charY + 'vh');
-  }
-  applyLayout();
 
   function applyOutput() {
     AudioEngine.setOutput(S.voiceOut, S.volume, state.muted);
@@ -82,11 +163,16 @@
     box.innerHTML = '';
     Object.keys(Settings.PRESETS).forEach(function (id) {
       var b = document.createElement('button');
-      b.textContent = Settings.PRESETS[id].key + '  ' + Settings.PRESETS[id].label;
+      b.innerHTML = '';
+      b.appendChild(document.createTextNode(Settings.PRESETS[id].label));
+      var k = document.createElement('kbd');
+      k.textContent = Settings.PRESETS[id].key;
+      b.appendChild(k);
       b.className = id === S.preset ? 'active' : '';
       b.addEventListener('click', function () { setPreset(id); });
       box.appendChild(b);
     });
+    $('presetName').textContent = '「' + Settings.PRESETS[S.preset].label + '」の調整：';
     var sl = $('presetSliders');
     sl.innerHTML = '';
     var p = S.presets[S.preset];
@@ -129,13 +215,17 @@
   });
 
   // ===== 表情 =====
+  function hasExpression(id) { return !!(window.CHARACTER && CHARACTER.expressions[id]); }
+
   function renderExpressions() {
     var box = $('exprBtns');
     box.innerHTML = '';
     Settings.EXPRESSIONS.forEach(function (e) {
       var b = document.createElement('button');
-      b.textContent = e.key + ' ' + e.label + (TracedChar.has(e.id) ? '' : '（未）');
-      b.title = TracedChar.has(e.id) ? '' : 'この表情の絵はまだないので、通常の絵を表示します';
+      b.appendChild(document.createTextNode(e.label + (hasExpression(e.id) ? '' : '（未）')));
+      var k = document.createElement('kbd');
+      k.textContent = e.key;
+      b.appendChild(k);
       b.className = e.id === S.expression ? 'active' : '';
       b.addEventListener('click', function () { setExpression(e.id); });
       box.appendChild(b);
@@ -143,11 +233,103 @@
   }
 
   function setExpression(id) {
+    if (!Settings.EXPRESSIONS.some(function (e) { return e.id === id; })) id = 'normal';
     S.expression = id;
     save();
-    TracedChar.setExpression(id);
     renderExpressions();
+    sendState();
   }
+
+  // ===== 写真 =====
+  var photos = [];   // { id, name, blob, url }
+
+  function photoById(id) { return photos.find(function (p) { return p.id === id; }); }
+
+  async function loadPhotos() {
+    var list;
+    try { list = await Photos.list(); } catch (e) { list = []; console.error(e); }
+    photos.forEach(function (p) { URL.revokeObjectURL(p.url); });
+    photos = list.map(function (p) { return { id: p.id, name: p.name, blob: p.blob, url: URL.createObjectURL(p.blob) }; });
+    if (state.photoId != null && !photoById(state.photoId)) hidePhoto();
+    renderPhotos();
+  }
+
+  function renderPhotos() {
+    var ol = $('photoList');
+    ol.innerHTML = '';
+    photos.forEach(function (p, i) {
+      var li = document.createElement('li');
+      li.className = p.id === state.photoId ? 'showing' : '';
+      li.title = 'クリックで客席に出す／もう一度クリックで消す';
+      var num = document.createElement('span'); num.className = 'num'; num.textContent = i + 1;
+      var img = document.createElement('img'); img.src = p.url; img.alt = '';
+      var name = document.createElement('span'); name.className = 'name'; name.textContent = p.name;
+      var ops = document.createElement('span'); ops.className = 'ops';
+      [['↑', '上へ', function () { Photos.move(p.id, -1).then(loadPhotos); }],
+       ['↓', '下へ', function () { Photos.move(p.id, 1).then(loadPhotos); }],
+       ['×', '削除', function () {
+         if (!confirm('「' + p.name + '」を削除しますか？')) return;
+         if (state.photoId === p.id) hidePhoto();
+         Photos.remove(p.id).then(loadPhotos);
+       }]].forEach(function (op) {
+        var b = document.createElement('button');
+        b.textContent = op[0]; b.title = op[1];
+        b.addEventListener('click', function (ev) { ev.stopPropagation(); op[2](); });
+        ops.appendChild(b);
+      });
+      li.appendChild(num); li.appendChild(img); li.appendChild(name); li.appendChild(ops);
+      li.addEventListener('click', function () {
+        if (state.photoId === p.id) hidePhoto(); else showPhoto(p.id);
+      });
+      ol.appendChild(li);
+    });
+    var cur = photoById(state.photoId);
+    $('photoNow').textContent = '表示中：' + (cur ? (photos.indexOf(cur) + 1) + '. ' + cur.name : 'なし');
+  }
+
+  function showPhoto(id) {
+    var p = photoById(id);
+    if (!p) return;
+    state.photoId = id;
+    sendAll({ t: 'photo', id: p.id, blob: p.blob });
+    renderPhotos();
+  }
+
+  function hidePhoto() {
+    state.photoId = null;
+    sendAll({ t: 'photo', id: null });
+    renderPhotos();
+  }
+
+  function stepPhoto(dir) {
+    if (!photos.length) return;
+    var i = photos.findIndex(function (p) { return p.id === state.photoId; });
+    if (i < 0) i = dir > 0 ? 0 : photos.length - 1;
+    else i = Math.max(0, Math.min(photos.length - 1, i + dir));
+    showPhoto(photos[i].id);
+  }
+
+  async function addFiles(files) {
+    var imgs = Array.prototype.filter.call(files, function (f) { return /^image\//.test(f.type); });
+    for (var i = 0; i < imgs.length; i++) {
+      try { await Photos.add(imgs[i]); } catch (e) { alert('写真を保存できませんでした: ' + e); }
+    }
+    loadPhotos();
+  }
+
+  $('photoInput').addEventListener('change', function (e) { addFiles(e.target.files); e.target.value = ''; });
+  var dz = $('dropZone');
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('over'); });
+  });
+  dz.addEventListener('drop', function (e) { addFiles(e.dataTransfer.files); });
+  // 枠の外に落としてもブラウザが写真を開いてしまわないように
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) { e.preventDefault(); });
+  $('hidePhoto').addEventListener('click', hidePhoto);
 
   // ===== マイク =====
   async function startMic() {
@@ -162,6 +344,8 @@
         : location.protocol === 'file:' ? '動作中（ファイルを直接開いているため声の高さは変えられません。URLで開いてください）'
           : '動作中（このブラウザでは声の高さを変えられません）';
       $('micToggle').textContent = 'マイク停止';
+      $('micPill').textContent = 'マイク：動作中';
+      $('micPill').classList.add('on');
       await refreshDevices();
       renderPresets();
       return true;
@@ -172,16 +356,10 @@
         : e && e.name === 'NotFoundError'
           ? 'マイクが見つかりません。マイクがつながっているか確認してください。'
           : 'マイクを開始できませんでした: ' + (e && e.message ? e.message : e);
-      $('micStatus').textContent = '停止中';
+      $('micStatus').textContent = msg;
       $('startError').textContent = msg;
-      alertPanel(msg);
       return false;
     }
-  }
-
-  function alertPanel(msg) {
-    var p = $('micStatus');
-    p.textContent = msg;
   }
 
   $('micToggle').addEventListener('click', function () {
@@ -189,6 +367,8 @@
       AudioEngine.stop();
       $('micToggle').textContent = 'マイク開始';
       $('micStatus').textContent = '停止中';
+      $('micPill').textContent = 'マイク：停止中';
+      $('micPill').classList.remove('on');
     } else {
       startMic();
     }
@@ -230,7 +410,7 @@
   $('outSelect').addEventListener('change', async function () {
     S.outId = $('outSelect').value;
     save();
-    try { await AudioEngine.setSink(S.outId); } catch (e) { alertPanel('音を出す先を切り替えられませんでした'); }
+    try { await AudioEngine.setSink(S.outId); } catch (e) { $('micStatus').textContent = '音を出す先を切り替えられませんでした'; }
   });
 
   if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
@@ -246,99 +426,76 @@
   });
   $('startNoMic').addEventListener('click', function () { $('startCard').hidden = true; });
 
-  // ===== ミュート・テスト =====
+  // ===== ミュート・テスト・暗転 =====
   function setMuted(m) {
     state.muted = m;
-    $('muteBtn').className = m ? 'active' : '';
-    $('muteBtn').textContent = m ? 'ミュート中 (M)' : 'ミュート (M)';
+    $('muteBtn').classList.toggle('active', m);
     applyOutput();
   }
   $('muteBtn').addEventListener('click', function () { setMuted(!state.muted); });
 
   var testBtn = $('testMouth');
-  ['pointerdown'].forEach(function (ev) { testBtn.addEventListener(ev, function () { state.testHeld = true; }); });
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) { testBtn.addEventListener(ev, function () { state.testHeld = false; }); });
+  testBtn.addEventListener('pointerdown', function () { state.testHeld = true; });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) {
+    testBtn.addEventListener(ev, function () { state.testHeld = false; });
+  });
 
-  // ===== 暗転・起動演出 =====
-  var screenEl = $('screen');
+  function setOffUi(off) {
+    state.off = off;
+    $('bootBtn').classList.toggle('off', off);
+    $('bootBtn').firstChild.textContent = off ? '暗転中 → 起動 ' : '暗転 / 起動 ';
+  }
+
   function toggleBoot() {
-    if (!state.off) {
-      state.off = true;
-      screenEl.classList.remove('boot');
-      screenEl.classList.add('powerOff');
-      setTimeout(function () {
-        document.body.classList.add('is-off');
-        screenEl.classList.remove('powerOff');
-      }, 560);
-    } else {
-      state.off = false;
-      document.body.classList.remove('is-off');
-      screenEl.classList.remove('boot');
-      void screenEl.offsetWidth; // アニメーションを最初から
-      screenEl.classList.add('boot');
-      setTimeout(function () { screenEl.classList.remove('boot'); }, 1700);
-    }
-    $('bootBtn').className = state.off ? 'active' : '';
+    setOffUi(!state.off);
+    sendAll({ t: 'boot', off: state.off });
   }
   $('bootBtn').addEventListener('click', toggleBoot);
 
-  // ===== 全画面・パネル・カーソル =====
-  function toggleFullscreen() {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else document.documentElement.requestFullscreen().catch(function () { /* 無視 */ });
-  }
-  $('fsBtn').addEventListener('click', toggleFullscreen);
-
-  function togglePanel() { document.body.classList.toggle('panel-hidden'); }
-  $('panelClose').addEventListener('click', togglePanel);
-
-  var cursorTimer = 0;
-  window.addEventListener('mousemove', function () {
-    document.body.classList.remove('hide-cursor');
-    clearTimeout(cursorTimer);
-    cursorTimer = setTimeout(function () {
-      if (document.body.classList.contains('panel-hidden')) document.body.classList.add('hide-cursor');
-    }, 2000);
-  });
-
-  // ===== キー操作 =====
+  // ===== キー操作（投影画面で押したキーもここに届く） =====
   var PRESET_KEYS = {};
   Object.keys(Settings.PRESETS).forEach(function (id) { PRESET_KEYS[Settings.PRESETS[id].key.toLowerCase()] = id; });
   var EXPR_KEYS = {};
   Settings.EXPRESSIONS.forEach(function (e) { EXPR_KEYS[e.key] = e.id; });
 
+  function handleKey(e) {
+    var k = (e.key || '').toLowerCase();
+    if (e.type === 'up') { if (k === 't') state.testHeld = false; return false; }
+    if (k === 't') { state.testHeld = true; return true; }
+    if (e.repeat) return false;
+    var digit = /^(?:Digit|Numpad)(\d)$/.exec(e.code || '');
+    var dk = digit ? digit[1] : k;
+    if (EXPR_KEYS[dk]) { setExpression(EXPR_KEYS[dk]); return true; }
+    if (dk === '0') { hidePhoto(); return true; }
+    if (PRESET_KEYS[k]) { setPreset(PRESET_KEYS[k]); return true; }
+    if (k === 'arrowright') { stepPhoto(1); return true; }
+    if (k === 'arrowleft') { stepPhoto(-1); return true; }
+    if (k === 'b') { toggleBoot(); return true; }
+    if (k === 'm') { setMuted(!state.muted); return true; }
+    return false;
+  }
+
   window.addEventListener('keydown', function (e) {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     var tag = e.target && e.target.tagName;
-    if (tag === 'SELECT' || (tag === 'INPUT' && e.target.type !== 'range' && e.target.type !== 'checkbox')) return;
-    var k = e.key.toLowerCase();
-    if (k === 't') { state.testHeld = true; return; }
-    if (e.repeat) return;
-    var code = e.code || '';
-    var digit = /^Digit(\d)$/.exec(code) || /^Numpad(\d)$/.exec(code);
-    var dk = digit ? digit[1] : k;
-    if (EXPR_KEYS[dk]) { setExpression(EXPR_KEYS[dk]); e.preventDefault(); return; }
-    if (PRESET_KEYS[k]) { setPreset(PRESET_KEYS[k]); return; }
-    if (k === 'b') toggleBoot();
-    else if (k === 'm') setMuted(!state.muted);
-    else if (k === 'h') togglePanel();
-    else if (k === 'f') toggleFullscreen();
+    if (tag === 'SELECT' || tag === 'TEXTAREA') return;
+    if (tag === 'INPUT' && (e.target.type !== 'checkbox' || /^Arrow/.test(e.key))) return;
+    if (handleKey({ type: 'down', key: e.key, code: e.code, repeat: e.repeat })) e.preventDefault();
   });
-  window.addEventListener('keyup', function (e) {
-    if (e.key.toLowerCase() === 't') state.testHeld = false;
-  });
+  window.addEventListener('keyup', function (e) { handleKey({ type: 'up', key: e.key, code: e.code }); });
   window.addEventListener('blur', function () { state.testHeld = false; });
 
-  // ===== 毎フレームの処理 =====
-  var meterBar = $('meterBar'), meterTh = $('meterThreshold');
-  var last = performance.now();
+  // ===== 口パクの計算 =====
+  // マイクの音量は音声処理の中から約16ミリ秒ごとに届く（操作画面が隠れていても止まらない）。
+  // 届かない時（マイクなし・古いブラウザ）はタイマーで計算する
+  var lastLevelAt = 0;
+  AudioEngine.onLevel(function (a) { lastLevelAt = performance.now(); tick(a); });
+  setInterval(function () {
+    if (performance.now() - lastLevelAt > 100) tick(AudioEngine.analyze());
+  }, 16);
 
-  function frame(now) {
-    var dt = Math.min(0.05, (now - last) / 1000);
-    last = now;
-    var t = now / 1000;
-
-    var a = AudioEngine.analyze();
+  function tick(a) {
+    var t = performance.now() / 1000;
     state.db = a.db;
     var target = Math.max(0, Math.min(1, (a.db - S.threshold) / S.range));
     var bright = a.bright;
@@ -358,22 +515,24 @@
     state.open += (target - state.open) * (target > state.open ? 0.6 : 0.28);
     state.bright += (bright - state.bright) * 0.15;
     state.level += (Math.min(1, target) - state.level) * 0.1;
+    sendAll({ t: 'frame', open: state.open, bright: state.bright, level: state.level });
+  }
 
-    Background.draw(t, dt, state.level);
-    TracedChar.update(t, dt, { open: state.open, bright: state.bright });
-
-    // レベルメーター（-90dB〜0dB）
+  // ===== 画面の表示（メーターとプレビューの大きさ） =====
+  var meterBar = $('meterBar'), meterTh = $('meterThreshold');
+  var previewBox = $('previewBox'), previewFrame = $('preview');
+  function draw() {
     var pct = function (db) { return Math.max(0, Math.min(100, (db + 90) / 90 * 100)); };
-    meterBar.style.width = pct(a.db) + '%';
-    meterBar.className = a.db > S.threshold ? 'open' : '';
+    meterBar.style.width = pct(state.db) + '%';
+    meterBar.className = state.db > S.threshold ? 'open' : '';
     meterTh.style.left = pct(S.threshold) + '%';
-
-    requestAnimationFrame(frame);
+    previewFrame.style.transform = 'scale(' + (previewBox.clientWidth / 1280) + ')';
+    requestAnimationFrame(draw);
   }
 
   // ===== 起動 =====
   renderPresets();
-  renderExpressions();
   setExpression(S.expression);
-  requestAnimationFrame(frame);
+  loadPhotos();
+  requestAnimationFrame(draw);
 })();

@@ -38,7 +38,29 @@
     '    return true;',
     '  }',
     '}',
-    'registerProcessor("pitch-shifter", PitchShifter);'
+    'registerProcessor("pitch-shifter", PitchShifter);',
+    // 音量メーター：約16ミリ秒ごとに音量と「声の明るさ」の目安を知らせる。
+    // 画面が隠れて描画が止まっても、こちらは止まらないので口パクが続く
+    'class LevelMeter extends AudioWorkletProcessor {',
+    '  constructor() { super(); this.sum = 0; this.n = 0; this.zc = 0; this.prev = 0; this.target = Math.round(sampleRate * 0.016); }',
+    '  process(inputs) {',
+    '    const x = inputs[0] && inputs[0][0];',
+    '    if (x) {',
+    '      for (let i = 0; i < x.length; i++) {',
+    '        const v = x[i]; this.sum += v * v;',
+    '        if ((v >= 0) !== (this.prev >= 0)) this.zc++;',
+    '        this.prev = v;',
+    '      }',
+    '      this.n += x.length;',
+    '    } else { this.n += 128; }',
+    '    if (this.n >= this.target) {',
+    '      this.port.postMessage({ rms: Math.sqrt(this.sum / this.n), zcr: this.zc / this.n });',
+    '      this.sum = 0; this.n = 0; this.zc = 0;',
+    '    }',
+    '    return true;',
+    '  }',
+    '}',
+    'registerProcessor("level-meter", LevelMeter);'
   ].join('\n');
 
   var ctx = null, stream = null, source = null;
@@ -47,6 +69,7 @@
   var running = false;
   var shifterOk = false;
   var outState = { enabled: false, volume: 1, muted: false };
+  var levelCallback = null;
 
   function db2gain(db) { return Math.pow(10, db / 20); }
 
@@ -87,6 +110,17 @@
     n.analyser.fftSize = 1024;
     n.analyser.smoothingTimeConstant = 0.3;
     n.input.connect(n.analyser);
+    if (shifterOk) {
+      n.meter = new AudioWorkletNode(ctx, 'level-meter', { numberOfInputs: 1, numberOfOutputs: 0, channelCount: 1, channelCountMode: 'explicit' });
+      n.meter.port.onmessage = function (e) {
+        if (!running || !levelCallback) return;
+        var d = e.data;
+        var db = 20 * Math.log10(d.rms + 1e-9);
+        var hz = d.zcr * ctx.sampleRate / 2;
+        levelCallback({ db: db, bright: Math.max(0, Math.min(1, (hz - 600) / 2200)) });
+      };
+      n.input.connect(n.meter);
+    }
     timeBuf = new Float32Array(n.analyser.fftSize);
     freqBuf = new Uint8Array(n.analyser.frequencyBinCount);
 
@@ -254,7 +288,13 @@
     if (canSelectOutput()) await ctx.setSinkId(id || '');
   }
 
+  // 音声処理の中から音量を受け取る（使えない環境では null のまま。その時は analyze() を自分で呼ぶ）
+  function onLevel(fn) { levelCallback = fn; }
+  function hasLevelStream() { return !!n.meter; }
+
   window.AudioEngine = {
+    onLevel: onLevel,
+    hasLevelStream: hasLevelStream,
     start: start,
     stop: stop,
     isRunning: function () { return running; },
