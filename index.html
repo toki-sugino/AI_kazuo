@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AIカズオ（操作画面）</title>
-  <link rel="stylesheet" href="css/control.css?v=202610270227">
+  <link rel="stylesheet" href="css/control.css?v=202610270228">
 </head>
 <body>
   <header id="topbar">
@@ -43,7 +43,7 @@
   <main id="layout">
     <!-- 客席に映っているもの と 本番で押すボタン -->
     <section id="liveCol" class="card">
-      <div id="previewBox"><iframe id="preview" src="screen.html?v=202610270227&preview=1" title="客席の画面" tabindex="-1"></iframe></div>
+      <div id="previewBox"><iframe id="preview" src="screen.html?v=202610270228&preview=1" title="客席の画面" tabindex="-1"></iframe></div>
       <div class="meter" title="マイクの音量（白い線を越えると口が動く）">
         <div id="meterBar"></div>
         <div id="meterThreshold"></div>
@@ -56,7 +56,6 @@
       </div>
 
       <div class="btnGrid five" id="exprBtns"></div>
-      <div class="btnGrid four" id="presetBtns"></div>
       <div class="btnGrid two">
         <button id="muteBtn" class="toggle">ミュート <kbd>M</kbd></button>
         <button id="testMouth">テスト口パク <kbd>T</kbd></button>
@@ -104,7 +103,8 @@
         <input type="range" id="mouthScale" min="0.4" max="1.6" step="0.05">
       </label>
 
-      <h2 id="presetName"></h2>
+      <h2>声</h2>
+      <div class="btnGrid two" id="presetBtns"></div>
       <div id="presetSliders"></div>
       <button id="presetReset">この声を初期設定に戻す</button>
 
@@ -126,10 +126,10 @@
     <p id="startError" class="error"></p>
   </div>
 
-  <script src="js/settings.js?v=202610270227"></script>
-  <script src="characters/config.js?v=202610270227"></script>
-  <script src="js/photos.js?v=202610270227"></script>
-  <script src="js/audio.js?v=202610270227"></script>
-  <script src="js/app.js?v=202610270227"></script>
+  <script src="js/settings.js?v=202610270228"></script>
+  <script src="characters/config.js?v=202610270228"></script>
+  <script src="js/photos.js?v=202610270228"></script>
+  <script src="js/audio.js?v=202610270228"></script>
+  <script src="js/app.js?v=202610270228"></script>
 </body>
 </html>

@@ -228,8 +228,8 @@ kbd {
 .btnGrid.stage button { padding: 12px 4px; font-size: 14px; }
 
 /* 表情・声・その他のまとまりを、すき間で分ける */
-#exprBtns, #presetBtns { margin-top: 14px; }
-#presetBtns { margin-top: 6px; }
+#exprBtns { margin-top: 14px; }
+#presetBtns { margin: 0 0 8px; }
 
 /* カズオを出していない間は表情を薄く */
 body.kazuo-off #exprBtns { opacity: .45; }
