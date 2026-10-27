@@ -14,7 +14,6 @@
 
   Background.init($('bg'));
   TracedChar.init($('charWrap'), $('charBounce'));
-  Smoke.init($('smoke'));
 
   var st = { open: 0, bright: 0.5, level: 0 };
   var lastFrame = 0;
@@ -91,19 +90,16 @@
       return;
     }
     void spinEl.offsetWidth; // 動きを最初から
-    var rect = $('charWrap').getBoundingClientRect();
     if (kazuo) {
-      Smoke.puff(rect);  // 煙が立って、その中から現れる
       document.body.classList.remove('kazuo-off');
       spinEl.classList.add('spinIn');
-      spinTimer = setTimeout(function () { spinEl.classList.remove('spinIn'); }, 500);
+      spinTimer = setTimeout(function () { spinEl.classList.remove('spinIn'); }, 340);
     } else {
       spinEl.classList.add('spinOut');
-      setTimeout(function () { Smoke.puff(rect); }, 110);  // 縮んでいくところを煙で包む
       spinTimer = setTimeout(function () {
         document.body.classList.add('kazuo-off');
         spinEl.classList.remove('spinOut');
-      }, 370);
+      }, 320);
     }
   }
 
@@ -257,7 +253,6 @@
       Background.draw(t, dt, st.level);
       if (kazuo) TracedChar.update(t, dt, st);
     }
-    Smoke.draw(dt);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

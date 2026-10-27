@@ -172,7 +172,7 @@
     var feat = ext
       ? 'popup,fullscreen,left=' + ext.availLeft + ',top=' + ext.availTop + ',width=' + ext.availWidth + ',height=' + ext.availHeight
       : 'popup,width=1280,height=720';
-    displayWin = window.open('screen.html', 'aiKazuoScreen', feat);
+    displayWin = window.open('screen.html?v=202610270159', 'aiKazuoScreen', feat);
     if (!displayWin) {
       notice(found.asked
         ? '許可ありがとうございます。もう一度「投影開始」を押してください。'
