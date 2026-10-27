@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AIカズオ（操作画面）</title>
-  <link rel="stylesheet" href="css/control.css?v=202610270228">
+  <link rel="stylesheet" href="css/control.css?v=202610270715">
 </head>
 <body>
   <header id="topbar">
@@ -43,7 +43,7 @@
   <main id="layout">
     <!-- 客席に映っているもの と 本番で押すボタン -->
     <section id="liveCol" class="card">
-      <div id="previewBox"><iframe id="preview" src="screen.html?v=202610270228&preview=1" title="客席の画面" tabindex="-1"></iframe></div>
+      <div id="previewBox"><iframe id="preview" src="screen.html?v=202610270715&preview=1" title="客席の画面" tabindex="-1"></iframe></div>
       <div class="meter" title="マイクの音量（白い線を越えると口が動く）">
         <div id="meterBar"></div>
         <div id="meterThreshold"></div>
@@ -69,11 +69,6 @@
         <label class="fileBtn">＋ 追加<input type="file" id="photoInput" accept="image/*,video/*" multiple hidden></label>
         <button id="hidePhoto">消す <kbd>0</kbd></button>
       </div>
-      <div id="dropZone">
-        <ol id="photoList"></ol>
-        <p id="dropHint">ここにドラッグ＆ドロップ</p>
-      </div>
-
       <div id="videoCtl" hidden>
         <div class="row">
           <button id="vPlay" class="primary">▶ <kbd>Space</kbd></button>
@@ -88,6 +83,11 @@
           <output id="videoVolumeOut"></output>
         </div>
       </div>
+      <div id="dropZone">
+        <ol id="photoList"></ol>
+        <p id="dropHint">ここにドラッグ＆ドロップ</p>
+      </div>
+
       <label class="check small"><input type="checkbox" id="autoPlay"> 動画は出したら再生</label>
       <!-- 動画の音はここで鳴らす（映像は投影画面） -->
       <video id="audioVideo" hidden playsinline></video>
@@ -126,10 +126,10 @@
     <p id="startError" class="error"></p>
   </div>
 
-  <script src="js/settings.js?v=202610270228"></script>
-  <script src="characters/config.js?v=202610270228"></script>
-  <script src="js/photos.js?v=202610270228"></script>
-  <script src="js/audio.js?v=202610270228"></script>
-  <script src="js/app.js?v=202610270228"></script>
+  <script src="js/settings.js?v=202610270715"></script>
+  <script src="characters/config.js?v=202610270715"></script>
+  <script src="js/photos.js?v=202610270715"></script>
+  <script src="js/audio.js?v=202610270715"></script>
+  <script src="js/app.js?v=202610270715"></script>
 </body>
 </html>

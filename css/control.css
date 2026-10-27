@@ -307,6 +307,7 @@ button.active { background: var(--accent); border-color: #9fbaff; color: #fff; }
 
 #videoCtl {
   margin-top: 10px;
+  margin-bottom: -2px;
   padding: 8px;
   border: 1px solid var(--accent);
   border-radius: 8px;
