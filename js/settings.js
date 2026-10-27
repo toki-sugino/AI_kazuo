@@ -41,7 +41,12 @@
     presets: clone(PRESETS),
     expression: 'normal',
     charScale: 1,
-    charY: 0
+    charY: 0,
+    mode: 'kazuo',        // kazuo＝AIカズオモード / media＝画像・動画モード
+    autoPlay: true,       // 動画は出したらすぐ再生する
+    videoLoop: false,
+    videoSound: true,
+    videoVolume: 1
   };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }

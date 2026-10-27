@@ -45,6 +45,55 @@ html, body {
 }
 
 .pill.on { color: var(--ok); border-color: rgba(126, 226, 168, .5); }
+.pill.warn { color: var(--warn); border-color: rgba(255, 177, 92, .5); }
+
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; }
+.seg button:first-child { border-radius: 7px 0 0 7px; }
+.seg button:last-child { border-radius: 0 7px 7px 0; border-left: 0; }
+
+#notice {
+  margin: 0;
+  padding: 10px 14px;
+  background: rgba(255, 177, 92, .12);
+  border-bottom: 1px solid rgba(255, 177, 92, .4);
+  color: var(--warn);
+}
+
+.modeHint {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(79, 134, 255, .12);
+  color: #bcd0ff;
+}
+
+body.mode-media .modeHint { background: rgba(255, 255, 255, .08); color: #fff; }
+
+.warnText { color: var(--warn); }
+
+#videoCtl {
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: rgba(79, 134, 255, .08);
+}
+
+#videoCtl input[type="range"], #photoCol input[type="range"] { width: 100%; }
+#photoCol label { display: block; margin: 6px 0; }
+#photoCol label.check { display: inline-flex; gap: 6px; align-items: center; margin-right: 12px; }
+#photoCol output { float: right; color: var(--muted); }
+
+.badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #b0457a;
+  color: #fff;
+  font-size: 11px;
+}
 
 #layout {
   display: grid;
@@ -186,7 +235,7 @@ button.off { background: #000; border-color: #666; color: #fff; }
 #photoList li:hover { background: rgba(79, 134, 255, .08); }
 #photoList li.showing { border-color: var(--accent); background: rgba(79, 134, 255, .18); }
 #photoList .num { font-weight: bold; color: #9fbaff; text-align: center; }
-#photoList img { width: 88px; height: 60px; object-fit: contain; background: #000; border-radius: 4px; }
+#photoList .thumb { width: 88px; height: 60px; object-fit: contain; background: #000; border-radius: 4px; display: block; }
 #photoList .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #photoList .ops { display: flex; gap: 4px; }
 #photoList .ops button { padding: 4px 7px; }

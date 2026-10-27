@@ -19,6 +19,40 @@ body.hide-cursor, body.hide-cursor * { cursor: none !important; }
   transform-origin: 50% 50%;
 }
 
+/* ===== モード（AIカズオ ⇔ 画像・動画） ===== */
+#kazuoStage, #fullMedia {
+  position: absolute;
+  inset: 0;
+  transition: opacity .5s ease;
+}
+
+#fullMedia {
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.mode-media #kazuoStage { opacity: 0; }
+body.mode-media #fullMedia { opacity: 1; }
+
+#fullSlot {
+  position: absolute;
+  inset: 0;
+}
+
+#fullSlot > img, #fullSlot > video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+#fullSlot > .in { animation: fadeIn .45s ease both; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
 #bg {
   position: absolute;
   inset: 0;
@@ -40,7 +74,7 @@ body.hide-cursor, body.hide-cursor * { cursor: none !important; }
 }
 
 /* 写真を出している間は、カズオが右へよける */
-body.has-photo #charWrap { left: 74%; }
+body.has-photo:not(.mode-media) #charWrap { left: 74%; }
 
 #charBounce {
   position: relative;
@@ -92,7 +126,7 @@ body.has-photo #photoWrap { visibility: visible; }
   opacity: 0;
 }
 
-#photoImg {
+#frameSlot > img, #frameSlot > video {
   display: block;
   max-width: calc(52vw - 1vh);
   max-height: calc(80vh - 1vh);

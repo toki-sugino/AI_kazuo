@@ -1,4 +1,4 @@
-// 操作画面：マイク・声・表情・写真・暗転を操作し、投影画面へ指示を送る
+// 操作画面：マイク・声・表情・画像/動画・モード・暗転を操作し、投影画面へ指示を送る
 (function () {
   'use strict';
 
@@ -23,7 +23,7 @@
     db: -100,
     gateOpenUntil: 0,
     off: false,
-    photoId: null
+    mediaId: null
   };
 
   function save() { Settings.save(S); }
@@ -43,13 +43,20 @@
     if (m.t === 'hello') {
       var tg = targets.find(function (x) { return x.win === e.source; });
       if (!tg) {
-        tg = { win: e.source, preview: !!m.preview, last: 0 };
+        tg = { win: e.source, preview: !!m.preview, last: 0, fullscreen: false };
         targets.push(tg);
         // この操作画面より前から開いている投影画面なら（操作画面を読み込み直した時）、その状態を引き継ぐ
         if (!m.preview && m.age > performance.now()) adoptScreenState(m);
         sendFullState(tg.win);
       }
       tg.last = performance.now();
+      tg.fullscreen = !!m.fullscreen;
+      if (!m.preview) {
+        displayWin = e.source;
+        // 「投影開始」を押した直後なら、そのクリックの許可を渡して全画面にしてもらう
+        if (pendingFullscreen && !m.fullscreen) delegateFullscreen(e.source);
+        pendingFullscreen = false;
+      }
       updateScreenStatus();
     } else if (m.t === 'key') {
       if (targets.some(function (x) { return x.win === e.source; })) handleKey(m);
@@ -58,9 +65,12 @@
 
   function adoptScreenState(m) {
     if (m.off !== state.off) setOffUi(!!m.off);
-    if (m.photoId !== state.photoId) {
-      state.photoId = m.photoId == null ? null : m.photoId;
-      renderPhotos();
+    if (m.mode && m.mode !== S.mode) { S.mode = m.mode; save(); renderMode(); }
+    if (m.mediaId !== state.mediaId) {
+      state.mediaId = m.mediaId == null ? null : m.mediaId;
+      var it = itemById(state.mediaId);
+      if (it && it.kind === 'video') loadPlayer(it, false);
+      renderMedia();
     }
   }
 
@@ -75,45 +85,92 @@
   }
 
   function stateMsg() {
-    return { t: 'state', expression: S.expression, charScale: S.charScale, charY: S.charY, off: state.off };
+    return { t: 'state', mode: S.mode, expression: S.expression, charScale: S.charScale, charY: S.charY, off: state.off };
   }
 
   function sendState() { sendAll(stateMsg()); }
 
   function sendFullState(win) {
     post(win, stateMsg());
-    if (state.photoId != null) {
-      var p = photoById(state.photoId);
-      if (p) post(win, { t: 'photo', id: p.id, blob: p.blob });
+    var it = itemById(state.mediaId);
+    if (it) {
+      post(win, { t: 'media', id: it.id, kind: it.kind, blob: it.blob });
+      if (it.kind === 'video') post(win, videoMsg());
     }
   }
 
   function updateScreenStatus() {
     var now = performance.now();
-    var live = targets.some(function (x) { return !x.preview && !x.win.closed && now - x.last < 5000; });
+    var scr = targets.filter(function (x) { return !x.preview && !x.win.closed && now - x.last < 5000; })[0];
     var el = $('screenStatus');
-    el.textContent = live ? '投影画面：接続中' : '投影画面：未接続';
-    el.classList.toggle('on', live);
+    el.textContent = !scr ? '投影画面：未接続' : scr.fullscreen ? '投影画面：全画面で投影中' : '投影画面：接続中（全画面ではない）';
+    el.classList.toggle('on', !!(scr && scr.fullscreen));
+    el.classList.toggle('warn', !!(scr && !scr.fullscreen));
+    $('openScreen').firstChild.textContent = !scr ? '投影開始（全画面） ' : scr.fullscreen ? '投影中 ' : '全画面にする ';
   }
   setInterval(updateScreenStatus, 1000);
 
-  // 投影画面を開く。液晶がつながっていれば、そちらの画面に開く
-  async function openScreen() {
-    if (displayWin && !displayWin.closed) { displayWin.focus(); return; }
-    var feat = 'popup,width=1280,height=720';
+  // 投影画面を開く。液晶（外部ディスプレイ）がつながっていれば、そちらに全画面で開く
+  var pendingFullscreen = false;
+
+  function notice(msg) {
+    var el = $('notice');
+    el.textContent = msg || '';
+    el.hidden = !msg;
+  }
+
+  // ボタンを押した「許可」を投影画面に渡して、全画面にしてもらう
+  function delegateFullscreen(win) {
     try {
-      if ('getScreenDetails' in window) {
-        var d = await window.getScreenDetails();
-        var other = d.screens.filter(function (s) { return s !== d.currentScreen; })[0];
-        if (other) {
-          feat = 'popup,left=' + other.availLeft + ',top=' + other.availTop +
-            ',width=' + other.availWidth + ',height=' + other.availHeight;
-        }
-      }
-    } catch (e) { /* 画面の情報を使えない時は普通に開く */ }
+      win.postMessage({ t: 'fullscreen' }, { targetOrigin: location.origin, delegate: 'fullscreen' });
+    } catch (e) {
+      post(win, { t: 'fullscreen' }); // 渡せない時（ファイルを直接開いた時など）は投影画面をクリックしてもらう
+    }
+  }
+
+  async function findExternalScreen() {
+    if (!('getScreenDetails' in window)) return { screen: null, asked: false };
+    var asked = false;
+    try {
+      var perm = await navigator.permissions.query({ name: 'window-management' });
+      asked = perm.state === 'prompt';
+    } catch (e) { /* 古いブラウザ */ }
+    try {
+      var d = await window.getScreenDetails();
+      var other = d.screens.filter(function (s) { return s !== d.currentScreen; });
+      // 外部ディスプレイ（内蔵でない画面）を優先する
+      other.sort(function (a, b) { return (a.isInternal ? 1 : 0) - (b.isInternal ? 1 : 0); });
+      return { screen: other[0] || null, asked: asked };
+    } catch (e) {
+      return { screen: null, asked: asked, denied: true };
+    }
+  }
+
+  async function openScreen() {
+    notice('');
+    var now = performance.now();
+    var live = targets.filter(function (x) { return !x.preview && !x.win.closed && now - x.last < 5000; })[0];
+    if (live) {
+      if (!live.fullscreen) delegateFullscreen(live.win);
+      return;
+    }
+    var found = await findExternalScreen();
+    var ext = found.screen;
+    var feat = ext
+      ? 'popup,fullscreen,left=' + ext.availLeft + ',top=' + ext.availTop + ',width=' + ext.availWidth + ',height=' + ext.availHeight
+      : 'popup,width=1280,height=720';
     displayWin = window.open('screen.html', 'aiKazuoScreen', feat);
     if (!displayWin) {
-      alert('投影画面を開けませんでした。アドレスバー右端の「ポップアップがブロックされました」から、このサイトのポップアップを許可して、もう一度押してください。');
+      notice(found.asked
+        ? '許可ありがとうございます。もう一度「投影開始」を押してください。'
+        : '投影画面を開けませんでした。アドレスバー右端の「ポップアップがブロックされました」から、このサイトのポップアップを許可して、もう一度押してください。');
+      return;
+    }
+    pendingFullscreen = !!ext;
+    if (!ext) {
+      notice(found.denied
+        ? '「ウィンドウの管理」が許可されていないため、液晶の場所が分かりません。投影画面を液晶側へドラッグして、クリックすると全画面になります。'
+        : '液晶（外部ディスプレイ）が見つかりません。Windowsキー＋P で「拡張」にしてから、投影画面を閉じてもう一度押してください。');
     }
   }
   $('openScreen').addEventListener('click', openScreen);
@@ -152,6 +209,10 @@
   bindCheck('noiseSuppression', 'noiseSuppression', function () { if (AudioEngine.isRunning()) startMic(); });
   bindCheck('voiceOut', 'voiceOut', applyOutput);
   bindCheck('gate', 'gate', function () { AudioEngine.setGate(true); });
+  bindCheck('autoPlay', 'autoPlay');
+  bindCheck('videoLoop', 'videoLoop', function () { player.loop = S.videoLoop; sendVideo(); });
+  bindCheck('videoSound', 'videoSound', applyVideoAudio);
+  bindRange('videoVolume', 'videoVolume', function (v) { return Math.round(v * 100) + '%'; }, applyVideoAudio);
 
   function applyOutput() {
     AudioEngine.setOutput(S.voiceOut, S.volume, state.muted);
@@ -240,81 +301,124 @@
     sendState();
   }
 
-  // ===== 写真 =====
-  var photos = [];   // { id, name, blob, url }
-
-  function photoById(id) { return photos.find(function (p) { return p.id === id; }); }
-
-  async function loadPhotos() {
-    var list;
-    try { list = await Photos.list(); } catch (e) { list = []; console.error(e); }
-    photos.forEach(function (p) { URL.revokeObjectURL(p.url); });
-    photos = list.map(function (p) { return { id: p.id, name: p.name, blob: p.blob, url: URL.createObjectURL(p.blob) }; });
-    if (state.photoId != null && !photoById(state.photoId)) hidePhoto();
-    renderPhotos();
+  // ===== モード =====
+  function setMode(m) {
+    S.mode = m === 'media' ? 'media' : 'kazuo';
+    save();
+    renderMode();
+    sendState();
   }
 
-  function renderPhotos() {
+  function renderMode() {
+    $('modeKazuo').classList.toggle('active', S.mode === 'kazuo');
+    $('modeMedia').classList.toggle('active', S.mode === 'media');
+    document.body.classList.toggle('mode-media', S.mode === 'media');
+    $('mediaHint').textContent = S.mode === 'media'
+      ? '画像・動画モード：枠なしで画面いっぱいに出ます'
+      : 'AIカズオモード：カズオの横の枠の中に出ます';
+  }
+  $('modeKazuo').addEventListener('click', function () { setMode('kazuo'); });
+  $('modeMedia').addEventListener('click', function () { setMode('media'); });
+
+  // ===== 画像・動画 =====
+  var items = [];   // { id, name, blob, url, kind }
+
+  function itemById(id) { return id == null ? null : items.find(function (p) { return p.id === id; }) || null; }
+  function kindOf(blob) { return /^video\//.test(blob.type) ? 'video' : 'image'; }
+
+  async function loadMedia() {
+    var list;
+    try { list = await Photos.list(); } catch (e) { list = []; console.error(e); }
+    items.forEach(function (p) { URL.revokeObjectURL(p.url); });
+    items = list.map(function (p) {
+      return { id: p.id, name: p.name, blob: p.blob, url: URL.createObjectURL(p.blob), kind: kindOf(p.blob) };
+    });
+    if (state.mediaId != null) {
+      var cur = itemById(state.mediaId);
+      if (!cur) hideMedia();
+      else if (cur.kind === 'video' && (!playerItem || playerItem.id !== cur.id)) loadPlayer(cur, false);
+    }
+    renderMedia();
+  }
+
+  function renderMedia() {
     var ol = $('photoList');
     ol.innerHTML = '';
-    photos.forEach(function (p, i) {
+    items.forEach(function (p, i) {
       var li = document.createElement('li');
-      li.className = p.id === state.photoId ? 'showing' : '';
+      li.className = p.id === state.mediaId ? 'showing' : '';
       li.title = 'クリックで客席に出す／もう一度クリックで消す';
       var num = document.createElement('span'); num.className = 'num'; num.textContent = i + 1;
-      var img = document.createElement('img'); img.src = p.url; img.alt = '';
-      var name = document.createElement('span'); name.className = 'name'; name.textContent = p.name;
+      var thumb;
+      if (p.kind === 'video') {
+        thumb = document.createElement('video');
+        thumb.muted = true; thumb.preload = 'metadata';
+        thumb.src = p.url + '#t=0.1';
+      } else {
+        thumb = document.createElement('img'); thumb.alt = '';
+        thumb.src = p.url;
+      }
+      thumb.className = 'thumb';
+      var name = document.createElement('span'); name.className = 'name';
+      if (p.kind === 'video') {
+        var badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = '動画';
+        name.appendChild(badge);
+      }
+      name.appendChild(document.createTextNode(p.name));
       var ops = document.createElement('span'); ops.className = 'ops';
-      [['↑', '上へ', function () { Photos.move(p.id, -1).then(loadPhotos); }],
-       ['↓', '下へ', function () { Photos.move(p.id, 1).then(loadPhotos); }],
+      [['↑', '上へ', function () { Photos.move(p.id, -1).then(loadMedia); }],
+       ['↓', '下へ', function () { Photos.move(p.id, 1).then(loadMedia); }],
        ['×', '削除', function () {
          if (!confirm('「' + p.name + '」を削除しますか？')) return;
-         if (state.photoId === p.id) hidePhoto();
-         Photos.remove(p.id).then(loadPhotos);
+         if (state.mediaId === p.id) hideMedia();
+         Photos.remove(p.id).then(loadMedia);
        }]].forEach(function (op) {
         var b = document.createElement('button');
         b.textContent = op[0]; b.title = op[1];
         b.addEventListener('click', function (ev) { ev.stopPropagation(); op[2](); });
         ops.appendChild(b);
       });
-      li.appendChild(num); li.appendChild(img); li.appendChild(name); li.appendChild(ops);
+      li.appendChild(num); li.appendChild(thumb); li.appendChild(name); li.appendChild(ops);
       li.addEventListener('click', function () {
-        if (state.photoId === p.id) hidePhoto(); else showPhoto(p.id);
+        if (state.mediaId === p.id) hideMedia(); else showMedia(p.id);
       });
       ol.appendChild(li);
     });
-    var cur = photoById(state.photoId);
-    $('photoNow').textContent = '表示中：' + (cur ? (photos.indexOf(cur) + 1) + '. ' + cur.name : 'なし');
+    var cur = itemById(state.mediaId);
+    $('photoNow').textContent = '表示中：' + (cur ? (items.indexOf(cur) + 1) + '. ' + cur.name : 'なし');
+    renderVideoControls();
   }
 
-  function showPhoto(id) {
-    var p = photoById(id);
+  function showMedia(id) {
+    var p = itemById(id);
     if (!p) return;
-    state.photoId = id;
-    sendAll({ t: 'photo', id: p.id, blob: p.blob });
-    renderPhotos();
+    state.mediaId = id;
+    sendAll({ t: 'media', id: p.id, kind: p.kind, blob: p.blob });
+    if (p.kind === 'video') loadPlayer(p, S.autoPlay); else unloadPlayer();
+    renderMedia();
   }
 
-  function hidePhoto() {
-    state.photoId = null;
-    sendAll({ t: 'photo', id: null });
-    renderPhotos();
+  function hideMedia() {
+    state.mediaId = null;
+    unloadPlayer();
+    sendAll({ t: 'media', id: null });
+    renderMedia();
   }
 
-  function stepPhoto(dir) {
-    if (!photos.length) return;
-    var i = photos.findIndex(function (p) { return p.id === state.photoId; });
-    if (i < 0) i = dir > 0 ? 0 : photos.length - 1;
-    else i = Math.max(0, Math.min(photos.length - 1, i + dir));
-    showPhoto(photos[i].id);
+  function stepMedia(dir) {
+    if (!items.length) return;
+    var i = items.findIndex(function (p) { return p.id === state.mediaId; });
+    if (i < 0) i = dir > 0 ? 0 : items.length - 1;
+    else i = Math.max(0, Math.min(items.length - 1, i + dir));
+    showMedia(items[i].id);
   }
 
   async function addFiles(files) {
-    var imgs = Array.prototype.filter.call(files, function (f) { return /^image\//.test(f.type); });
-    for (var i = 0; i < imgs.length; i++) {
-      try { await Photos.add(imgs[i]); } catch (e) { alert('写真を保存できませんでした: ' + e); }
+    var ok = Array.prototype.filter.call(files, function (f) { return /^(image|video)\//.test(f.type); });
+    for (var i = 0; i < ok.length; i++) {
+      try { await Photos.add(ok[i]); } catch (e) { alert('保存できませんでした（容量が足りない可能性があります）: ' + e); }
     }
-    loadPhotos();
+    loadMedia();
   }
 
   $('photoInput').addEventListener('change', function (e) { addFiles(e.target.files); e.target.value = ''; });
@@ -326,10 +430,100 @@
     dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('over'); });
   });
   dz.addEventListener('drop', function (e) { addFiles(e.dataTransfer.files); });
-  // 枠の外に落としてもブラウザが写真を開いてしまわないように
+  // 枠の外に落としてもブラウザがファイルを開いてしまわないように
   window.addEventListener('dragover', function (e) { e.preventDefault(); });
   window.addEventListener('drop', function (e) { e.preventDefault(); });
-  $('hidePhoto').addEventListener('click', hidePhoto);
+  $('hidePhoto').addEventListener('click', hideMedia);
+
+  // ===== 動画 =====
+  // 動画の音はこの操作画面で鳴らし（投影画面はクリックされていないので、音付きの自動再生が止められることがある）、
+  // 投影画面の映像はこの再生位置に合わせて動かす
+  var player = $('audioVideo');
+  var playerItem = null;
+
+  function videoMsg() {
+    return { t: 'video', id: playerItem ? playerItem.id : null, time: player.currentTime, paused: player.paused, loop: player.loop };
+  }
+
+  function sendVideo() { if (playerItem) sendAll(videoMsg()); }
+
+  function applyVideoAudio() {
+    player.muted = !S.videoSound;
+    player.volume = Math.max(0, Math.min(1, S.videoVolume));
+    if (S.outId && typeof player.setSinkId === 'function') player.setSinkId(S.outId).catch(function () { /* 既定のまま */ });
+  }
+
+  function loadPlayer(p, autoplay) {
+    playerItem = p;
+    player.src = p.url;
+    player.loop = S.videoLoop;
+    applyVideoAudio();
+    if (autoplay) playVideo(); else sendVideo();
+    renderVideoControls();
+  }
+
+  function unloadPlayer() {
+    if (!playerItem) return;
+    playerItem = null;
+    player.pause();
+    player.removeAttribute('src');
+    player.load();
+    renderVideoControls();
+  }
+
+  function playVideo() {
+    if (!playerItem) return;
+    if (player.ended) player.currentTime = 0;
+    applyVideoAudio();
+    player.play().then(function () {
+      if (!player.muted || !S.videoSound) $('videoWarn').hidden = true;
+    }).catch(function () {
+      // 音付きで再生できない時は、音なしで映像だけ進める
+      player.muted = true;
+      player.play().catch(function () { /* 無視 */ });
+      $('videoWarn').hidden = false;
+    });
+    sendVideo();
+  }
+
+  function togglePlay() {
+    if (!playerItem) return;
+    if (player.paused || player.ended) playVideo(); else { player.pause(); sendVideo(); }
+  }
+
+  ['play', 'pause', 'seeked', 'ended', 'loadedmetadata'].forEach(function (ev) {
+    player.addEventListener(ev, function () { sendVideo(); renderVideoControls(); });
+  });
+  player.addEventListener('timeupdate', renderVideoTime);
+  setInterval(sendVideo, 1000);
+
+  function fmtTime(sec) {
+    if (!isFinite(sec)) sec = 0;
+    var m = Math.floor(sec / 60), s2 = Math.floor(sec % 60);
+    return m + ':' + (s2 < 10 ? '0' : '') + s2;
+  }
+
+  function renderVideoTime() {
+    var d = player.duration;
+    $('vTime').textContent = fmtTime(player.currentTime) + ' / ' + fmtTime(d);
+    if (!seeking) $('vSeek').value = isFinite(d) && d > 0 ? Math.round(player.currentTime / d * 1000) : 0;
+  }
+
+  function renderVideoControls() {
+    $('videoCtl').hidden = !playerItem;
+    if (!playerItem) return;
+    $('vPlay').firstChild.textContent = player.paused || player.ended ? '▶ 再生 ' : '⏸ 一時停止 ';
+    renderVideoTime();
+  }
+
+  var seeking = false;
+  $('vSeek').addEventListener('input', function () {
+    seeking = true;
+    if (isFinite(player.duration)) player.currentTime = $('vSeek').value / 1000 * player.duration;
+  });
+  $('vSeek').addEventListener('change', function () { seeking = false; sendVideo(); });
+  $('vPlay').addEventListener('click', togglePlay);
+  $('vRestart').addEventListener('click', function () { player.currentTime = 0; sendVideo(); });
 
   // ===== マイク =====
   async function startMic() {
@@ -411,6 +605,7 @@
     S.outId = $('outSelect').value;
     save();
     try { await AudioEngine.setSink(S.outId); } catch (e) { $('micStatus').textContent = '音を出す先を切り替えられませんでした'; }
+    applyVideoAudio();
   });
 
   if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
@@ -466,10 +661,13 @@
     var digit = /^(?:Digit|Numpad)(\d)$/.exec(e.code || '');
     var dk = digit ? digit[1] : k;
     if (EXPR_KEYS[dk]) { setExpression(EXPR_KEYS[dk]); return true; }
-    if (dk === '0') { hidePhoto(); return true; }
+    if (dk === '0') { hideMedia(); return true; }
     if (PRESET_KEYS[k]) { setPreset(PRESET_KEYS[k]); return true; }
-    if (k === 'arrowright') { stepPhoto(1); return true; }
-    if (k === 'arrowleft') { stepPhoto(-1); return true; }
+    if (k === 'arrowright') { stepMedia(1); return true; }
+    if (k === 'arrowleft') { stepMedia(-1); return true; }
+    if (k === ' ') { togglePlay(); return true; }
+    if (k === 'k') { setMode('kazuo'); return true; }
+    if (k === 'p') { setMode('media'); return true; }
     if (k === 'b') { toggleBoot(); return true; }
     if (k === 'm') { setMuted(!state.muted); return true; }
     return false;
@@ -532,7 +730,8 @@
 
   // ===== 起動 =====
   renderPresets();
+  renderMode();
   setExpression(S.expression);
-  loadPhotos();
+  loadMedia();
   requestAnimationFrame(draw);
 })();
