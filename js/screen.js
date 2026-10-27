@@ -19,6 +19,7 @@
   var lastFrame = 0;
   var off = false;
   var kazuo = true;      // カズオを出すか
+  var gotState = false;
   var full = false;      // 画像・動画を枠なしで画面いっぱいにするか
   var media = { id: null, kind: null, el: null, url: null };
 
@@ -71,17 +72,34 @@
     r.setProperty('--char-scale', m.charScale);
     r.setProperty('--char-y', m.charY + 'vh');
     if (m.off !== off) setOff(m.off, false);
-    if (m.kazuo !== kazuo) setKazuo(m.kazuo !== false);
+    // 最初の指示（開いた直後・操作画面を読み込み直した時）は動きなしで合わせる
+    if (m.kazuo !== kazuo) setKazuo(m.kazuo !== false, gotState);
+    gotState = true;
     if (!!m.full !== full) setFull(!!m.full);
   }
 
   // ===== カズオのオン/オフ =====
-  function setKazuo(on) {
+  var spinEl = $('charSpin');
+  var spinTimer = 0;
+  function setKazuo(on, animate) {
     kazuo = on;
-    document.body.classList.toggle('kazuo-off', !kazuo);
+    clearTimeout(spinTimer);
+    spinEl.classList.remove('spinIn', 'spinOut');
+    if (!animate) {
+      document.body.classList.toggle('kazuo-off', !kazuo);
+      return;
+    }
+    void spinEl.offsetWidth; // 動きを最初から
     if (kazuo) {
-      var cb = $('charBounce');
-      cb.classList.remove('appear'); void cb.offsetWidth; cb.classList.add('appear');
+      document.body.classList.remove('kazuo-off');
+      spinEl.classList.add('spinIn');
+      spinTimer = setTimeout(function () { spinEl.classList.remove('spinIn'); }, 1300);
+    } else {
+      spinEl.classList.add('spinOut');
+      spinTimer = setTimeout(function () {
+        document.body.classList.add('kazuo-off');
+        spinEl.classList.remove('spinOut');
+      }, 720);
     }
   }
 
