@@ -80,6 +80,15 @@ body.media-full #fullMedia { opacity: 1; }
 body.has-photo #charWrap { left: 74%; }
 body.kazuo-off #charWrap { opacity: 0; }
 
+/* 煙（カズオが出る・消える時） */
+#smoke {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 /* カズオを出す・消す時の動き（時計回りに高速回転しながら、出す時は拡大・消す時は縮小） */
 #charSpin {
   width: 100%;
