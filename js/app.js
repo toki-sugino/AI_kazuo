@@ -105,12 +105,6 @@
     }
   }
 
-  // 客席に映っている（全画面で投影中・暗転していない）間は、プレビューを赤枠にする
-  var projecting = false;
-  function renderOnAir() {
-    $('previewBox').classList.toggle('onair', projecting && !state.off);
-  }
-
   function updateScreenStatus() {
     var now = performance.now();
     var scr = targets.filter(function (x) { return !x.preview && !x.win.closed && now - x.last < 5000; })[0];
@@ -118,8 +112,6 @@
     b.textContent = !scr ? '投影開始' : scr.fullscreen ? '投影中' : '全画面にする';
     b.classList.toggle('live', !!(scr && scr.fullscreen));
     b.classList.toggle('primary', !(scr && scr.fullscreen));
-    projecting = !!(scr && scr.fullscreen);
-    renderOnAir();
   }
   setInterval(updateScreenStatus, 1000);
 
@@ -172,7 +164,7 @@
     var feat = ext
       ? 'popup,fullscreen,left=' + ext.availLeft + ',top=' + ext.availTop + ',width=' + ext.availWidth + ',height=' + ext.availHeight
       : 'popup,width=1280,height=720';
-    displayWin = window.open('screen.html?v=202610270159', 'aiKazuoScreen', feat);
+    displayWin = window.open('screen.html?v=202610270210', 'aiKazuoScreen', feat);
     if (!displayWin) {
       notice(found.asked
         ? '許可ありがとうございます。もう一度「投影開始」を押してください。'
@@ -220,7 +212,6 @@
   bindRange('charScale', 'charScale', function (v) { return Math.round(v * 100) + '%'; }, sendState);
   bindRange('charY', 'charY', function (v) { return v; }, sendState);
   bindCheck('noiseSuppression', 'noiseSuppression', function () { if (AudioEngine.isRunning()) startMic(); });
-  bindCheck('voiceOut', 'voiceOut', applyOutput);
   bindCheck('gate', 'gate', function () { AudioEngine.setGate(true); });
   bindCheck('autoPlay', 'autoPlay');
   bindCheck('videoLoop', 'videoLoop', function () { player.loop = S.videoLoop; sendVideo(); });
@@ -229,6 +220,7 @@
 
   function applyOutput() {
     AudioEngine.setOutput(S.voiceOut, S.volume, state.muted);
+    $('spkToggle').classList.toggle('on', S.voiceOut);
   }
 
   // ===== 声のプリセット =====
@@ -580,44 +572,89 @@
     }
   });
 
+  // ===== マイク・スピーカーの選択（右上の ▾） =====
+  var devices = { inputs: [], outputs: [] };
+
   async function refreshDevices() {
-    var d = await AudioEngine.listDevices();
-    fillSelect($('micSelect'), d.inputs, S.micId, '既定のマイク');
-    if (AudioEngine.canSelectOutput()) {
-      fillSelect($('outSelect'), d.outputs, S.outId, '既定のスピーカー');
-    } else {
-      $('outSelect').hidden = true;
-    }
+    try { devices = await AudioEngine.listDevices(); } catch (e) { /* 一覧を取れない */ }
+    $('spkList').hidden = !AudioEngine.canSelectOutput();
   }
 
-  function fillSelect(sel, list, current, defLabel) {
-    sel.innerHTML = '';
-    var o = document.createElement('option');
-    o.value = '';
-    o.textContent = defLabel;
-    sel.appendChild(o);
+  function deviceItems(list, defLabel) {
+    var items = [{ id: '', label: defLabel }];
     list.forEach(function (dev, i) {
       if (dev.deviceId === 'default' || dev.deviceId === 'communications' || !dev.deviceId) return;
-      var op = document.createElement('option');
-      op.value = dev.deviceId;
-      op.textContent = dev.label || ('デバイス ' + (i + 1));
-      sel.appendChild(op);
+      items.push({ id: dev.deviceId, label: dev.label || ('デバイス ' + (i + 1)) });
     });
-    sel.value = current;
-    if (sel.value !== current) sel.value = '';
+    return items;
   }
 
-  $('micSelect').addEventListener('change', function () {
-    S.micId = $('micSelect').value;
-    save();
-    if (AudioEngine.isRunning()) startMic();
+  // 機器の一覧を作る（選んでもメニューは開いたまま。✓ が移る）
+  function renderDeviceList(list, items, current, onPick) {
+    list.innerHTML = '';
+    items.forEach(function (it) {
+      var li = document.createElement('li');
+      var b = document.createElement('button');
+      b.setAttribute('role', 'menuitemradio');
+      b.setAttribute('aria-checked', it.id === current ? 'true' : 'false');
+      b.textContent = it.label;
+      b.addEventListener('click', function () {
+        onPick(it.id);
+        renderDeviceList(list, items, it.id, onPick);
+      });
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+  }
+
+  function openMenu(menu, list, items, current, onPick) {
+    closeMenus();
+    renderDeviceList(list, items, current, onPick);
+    menu.hidden = false;
+  }
+
+  function closeMenus() {
+    $('micMenu').hidden = true;
+    $('spkMenu').hidden = true;
+  }
+
+  $('micCaret').addEventListener('click', async function (e) {
+    e.stopPropagation();
+    if (!$('micMenu').hidden) { closeMenus(); return; }
+    await refreshDevices();
+    var current = deviceItems(devices.inputs, '').some(function (it) { return it.id === S.micId; }) ? S.micId : '';
+    openMenu($('micMenu'), $('micList'), deviceItems(devices.inputs, '既定のマイク'), current, function (id) {
+      S.micId = id;
+      save();
+      if (AudioEngine.isRunning()) startMic();
+    });
   });
 
-  $('outSelect').addEventListener('change', async function () {
-    S.outId = $('outSelect').value;
+  $('spkCaret').addEventListener('click', async function (e) {
+    e.stopPropagation();
+    if (!$('spkMenu').hidden) { closeMenus(); return; }
+    await refreshDevices();
+    var current = deviceItems(devices.outputs, '').some(function (it) { return it.id === S.outId; }) ? S.outId : '';
+    openMenu($('spkMenu'), $('spkList'), deviceItems(devices.outputs, '既定のスピーカー'), current, async function (id) {
+      S.outId = id;
+      save();
+      try { await AudioEngine.setSink(S.outId); } catch (err) { notice('スピーカーを切り替えられませんでした'); }
+      applyVideoAudio();
+    });
+  });
+
+  // メニューの中を押しても閉じない（外を押すか Esc で閉じる）
+  ['micMenu', 'spkMenu'].forEach(function (id) {
+    $(id).addEventListener('click', function (e) { e.stopPropagation(); });
+  });
+  document.addEventListener('click', closeMenus);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(); });
+
+  // スピーカー：変えた声をPCから流すかどうか
+  $('spkToggle').addEventListener('click', function () {
+    S.voiceOut = !S.voiceOut;
     save();
-    try { await AudioEngine.setSink(S.outId); } catch (e) { notice('音を出す先を切り替えられませんでした'); }
-    applyVideoAudio();
+    applyOutput();
   });
 
   if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
@@ -650,7 +687,6 @@
   function setOffUi(off) {
     state.off = off;
     $('bootBtn').classList.toggle('active', off);
-    renderOnAir();
   }
 
   function toggleBoot() {
@@ -743,6 +779,8 @@
   // ===== 起動 =====
   renderPresets();
   renderStage();
+  applyOutput();
+  refreshDevices();
   setExpression(S.expression);
   loadMedia();
   requestAnimationFrame(draw);

@@ -35,8 +35,66 @@ html, body {
   border-bottom: 1px solid var(--line);
 }
 
-#topbar strong { font-size: 15px; margin-right: auto; letter-spacing: .08em; }
-#topbar button { min-width: 112px; }
+#topbar strong { font-size: 15px; margin-right: 6px; letter-spacing: .08em; }
+#openScreen { min-width: 112px; }
+.spacer { flex: 1; }
+
+/* 右上：オン/オフ ＋ ▾ で機器を選ぶ */
+.split { position: relative; display: inline-flex; }
+.split > button:first-child { border-radius: 7px 0 0 7px; min-width: 104px; }
+.split .caret { border-radius: 0 7px 7px 0; border-left: 0; padding: 7px 9px; }
+.split .caret[hidden] { display: none; }
+.split:has(.caret[hidden]) > button:first-child { border-radius: 7px; }
+.split > button.on { background: #3a1016; border-color: #ff4d5e; color: #ffd9dd; }
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 10;
+  width: 320px;
+  padding: 6px 12px 10px;
+  background: #111a3c;
+  border: 1px solid #2c3d7a;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .6);
+}
+
+.menu label { display: block; margin: 8px 0; }
+.menu label.check { display: flex; gap: 6px; align-items: center; }
+.menu input[type="range"] { display: block; width: 100%; margin-top: 3px; }
+.menu output { float: right; color: var(--muted); }
+
+.devList {
+  margin: 0 -6px 6px;
+  padding: 0 0 6px;
+  list-style: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.devList[hidden] { display: none; }
+
+.devList button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px 8px 28px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+}
+
+.devList button:hover { background: #1d2c60; }
+.devList button[aria-checked="true"]::before {
+  content: "✓";
+  position: absolute;
+  left: 10px;
+  color: var(--ok);
+}
 
 #openScreen.live { background: #0f3b2a; border-color: var(--ok); color: #c9f5de; }
 #openScreen.live::before, .dot::before {
@@ -50,7 +108,7 @@ html, body {
 }
 #openScreen.live::before { background: var(--ok); }
 .dot::before { background: #555b78; }
-.dot.on::before { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.dot.on::before { background: #ff3b4e; box-shadow: 0 0 6px #ff3b4e; }
 
 #notice {
   margin: 0;
@@ -122,12 +180,6 @@ kbd {
   border-radius: 6px;
   border: 1px solid var(--line);
   background: #000;
-}
-
-/* 客席に映っている間は赤枠 */
-#previewBox.onair {
-  border-color: #ff3b3b;
-  box-shadow: 0 0 0 2px #ff3b3b, 0 0 14px rgba(255, 59, 59, .45);
 }
 
 #preview {

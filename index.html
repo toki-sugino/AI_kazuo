@@ -4,20 +4,45 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AIカズオ（操作画面）</title>
-  <link rel="stylesheet" href="css/control.css?v=202610270159">
+  <link rel="stylesheet" href="css/control.css?v=202610270210">
 </head>
 <body>
   <header id="topbar">
     <strong>AIカズオ</strong>
     <button id="openScreen" class="primary">投影開始</button>
-    <button id="micToggle" class="dot">マイク</button>
+    <span class="spacer"></span>
+    <div class="split">
+      <button id="micToggle" class="dot">マイク</button>
+      <button id="micCaret" class="caret" aria-label="使うマイクを選ぶ" aria-haspopup="true">▾</button>
+      <div id="micMenu" class="menu" hidden>
+        <ul id="micList" class="devList" role="menu"></ul>
+        <label class="check"><input type="checkbox" id="noiseSuppression"> ノイズ抑制</label>
+        <label>感度 <output id="micGainOut"></output>
+          <input type="range" id="micGain" min="-12" max="24" step="1">
+        </label>
+        <label>しきい値 <output id="thresholdOut"></output>
+          <input type="range" id="threshold" min="-85" max="-15" step="1">
+        </label>
+      </div>
+    </div>
+    <div class="split">
+      <button id="spkToggle" class="dot">スピーカー</button>
+      <button id="spkCaret" class="caret" aria-label="声を出すスピーカーを選ぶ" aria-haspopup="true">▾</button>
+      <div id="spkMenu" class="menu" hidden>
+        <ul id="spkList" class="devList" role="menu"></ul>
+        <label>音量 <output id="volumeOut"></output>
+          <input type="range" id="volume" min="0" max="1.5" step="0.05">
+        </label>
+        <label class="check"><input type="checkbox" id="gate"> 小さい音は流さない</label>
+      </div>
+    </div>
   </header>
   <p id="notice" hidden></p>
 
   <main id="layout">
     <!-- 客席に映っているもの と 本番で押すボタン -->
     <section id="liveCol" class="card">
-      <div id="previewBox"><iframe id="preview" src="screen.html?v=202610270159&preview=1" title="客席の画面" tabindex="-1"></iframe></div>
+      <div id="previewBox"><iframe id="preview" src="screen.html?v=202610270210&preview=1" title="客席の画面" tabindex="-1"></iframe></div>
       <div class="meter" title="マイクの音量（白い線を越えると口が動く）">
         <div id="meterBar"></div>
         <div id="meterThreshold"></div>
@@ -70,16 +95,6 @@
 
     <!-- 設定 -->
     <aside id="settingsCol" class="card">
-      <h2>マイク</h2>
-      <select id="micSelect" aria-label="使うマイク"><option value="">既定のマイク</option></select>
-      <label class="check"><input type="checkbox" id="noiseSuppression"> ノイズ抑制</label>
-      <label>感度 <output id="micGainOut"></output>
-        <input type="range" id="micGain" min="-12" max="24" step="1">
-      </label>
-      <label>しきい値 <output id="thresholdOut"></output>
-        <input type="range" id="threshold" min="-85" max="-15" step="1">
-      </label>
-
       <h2>口パク</h2>
       <label>開きやすさ <output id="rangeOut"></output>
         <input type="range" id="range" min="8" max="45" step="1">
@@ -88,14 +103,7 @@
         <input type="range" id="mouthScale" min="0.4" max="1.6" step="0.05">
       </label>
 
-      <h2>声</h2>
-      <label class="check warn"><input type="checkbox" id="voiceOut"> PCから声を出す</label>
-      <select id="outSelect" aria-label="音を出す先"><option value="">既定のスピーカー</option></select>
-      <label>音量 <output id="volumeOut"></output>
-        <input type="range" id="volume" min="0" max="1.5" step="0.05">
-      </label>
-      <label class="check"><input type="checkbox" id="gate"> 小さい音は流さない</label>
-      <h3 id="presetName"></h3>
+      <h2 id="presetName"></h2>
       <div id="presetSliders"></div>
       <button id="presetReset">この声を初期設定に戻す</button>
 
@@ -117,10 +125,10 @@
     <p id="startError" class="error"></p>
   </div>
 
-  <script src="js/settings.js?v=202610270159"></script>
-  <script src="characters/config.js?v=202610270159"></script>
-  <script src="js/photos.js?v=202610270159"></script>
-  <script src="js/audio.js?v=202610270159"></script>
-  <script src="js/app.js?v=202610270159"></script>
+  <script src="js/settings.js?v=202610270210"></script>
+  <script src="characters/config.js?v=202610270210"></script>
+  <script src="js/photos.js?v=202610270210"></script>
+  <script src="js/audio.js?v=202610270210"></script>
+  <script src="js/app.js?v=202610270210"></script>
 </body>
 </html>
