@@ -134,6 +134,11 @@ html, body {
   align-items: start;
 }
 
+/* 設定欄を隠している時は2列 */
+body.settings-hidden #layout { grid-template-columns: minmax(360px, 1.4fr) minmax(280px, 1fr); }
+#settingsCol[hidden] { display: none; }
+#settingsBtn { margin-left: 4px; }
+
 @media (max-width: 1100px) {
   #layout { grid-template-columns: 1fr 1fr; }
   #settingsCol { grid-column: 1 / -1; }

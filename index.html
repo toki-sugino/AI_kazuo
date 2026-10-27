@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AIカズオ（操作画面）</title>
-  <link rel="stylesheet" href="css/control.css?v=202610270226">
+  <link rel="stylesheet" href="css/control.css?v=202610270227">
 </head>
 <body>
   <header id="topbar">
@@ -36,13 +36,14 @@
         <label class="check"><input type="checkbox" id="gate"> 小さい音は流さない</label>
       </div>
     </div>
+    <button id="settingsBtn" class="toggle" aria-controls="settingsCol" title="設定">⚙ 設定</button>
   </header>
   <p id="notice" hidden></p>
 
   <main id="layout">
     <!-- 客席に映っているもの と 本番で押すボタン -->
     <section id="liveCol" class="card">
-      <div id="previewBox"><iframe id="preview" src="screen.html?v=202610270226&preview=1" title="客席の画面" tabindex="-1"></iframe></div>
+      <div id="previewBox"><iframe id="preview" src="screen.html?v=202610270227&preview=1" title="客席の画面" tabindex="-1"></iframe></div>
       <div class="meter" title="マイクの音量（白い線を越えると口が動く）">
         <div id="meterBar"></div>
         <div id="meterThreshold"></div>
@@ -125,10 +126,10 @@
     <p id="startError" class="error"></p>
   </div>
 
-  <script src="js/settings.js?v=202610270226"></script>
-  <script src="characters/config.js?v=202610270226"></script>
-  <script src="js/photos.js?v=202610270226"></script>
-  <script src="js/audio.js?v=202610270226"></script>
-  <script src="js/app.js?v=202610270226"></script>
+  <script src="js/settings.js?v=202610270227"></script>
+  <script src="characters/config.js?v=202610270227"></script>
+  <script src="js/photos.js?v=202610270227"></script>
+  <script src="js/audio.js?v=202610270227"></script>
+  <script src="js/app.js?v=202610270227"></script>
 </body>
 </html>

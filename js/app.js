@@ -164,7 +164,7 @@
     var feat = ext
       ? 'popup,fullscreen,left=' + ext.availLeft + ',top=' + ext.availTop + ',width=' + ext.availWidth + ',height=' + ext.availHeight
       : 'popup,width=1280,height=720';
-    displayWin = window.open('screen.html?v=202610270226', 'aiKazuoScreen', feat);
+    displayWin = window.open('screen.html?v=202610270227', 'aiKazuoScreen', feat);
     if (!displayWin) {
       notice(found.asked
         ? '許可ありがとうございます。もう一度「投影開始」を押してください。'
@@ -784,8 +784,22 @@
     requestAnimationFrame(draw);
   }
 
+  // ===== 右の設定欄（⚙ 設定 で出し入れ） =====
+  function renderSettingsCol() {
+    document.body.classList.toggle('settings-hidden', !S.showSettings);
+    $('settingsCol').hidden = !S.showSettings;
+    $('settingsBtn').classList.toggle('active', S.showSettings);
+    $('settingsBtn').setAttribute('aria-expanded', S.showSettings ? 'true' : 'false');
+  }
+  $('settingsBtn').addEventListener('click', function () {
+    S.showSettings = !S.showSettings;
+    save();
+    renderSettingsCol();
+  });
+
   // ===== 起動 =====
   renderPresets();
+  renderSettingsCol();
   renderStage();
   setSwitch('micToggle', false);
   applyOutput();

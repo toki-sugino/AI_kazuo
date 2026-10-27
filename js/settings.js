@@ -43,6 +43,7 @@
     charScale: 1,
     charY: 0,
     kazuo: true,          // カズオを出すか
+    showSettings: false,  // 操作画面の右の設定欄を出すか
     autoPlay: true,       // 動画は出したらすぐ再生する
     videoLoop: false,
     videoSound: true,
