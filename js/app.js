@@ -164,7 +164,7 @@
     var feat = ext
       ? 'popup,fullscreen,left=' + ext.availLeft + ',top=' + ext.availTop + ',width=' + ext.availWidth + ',height=' + ext.availHeight
       : 'popup,width=1280,height=720';
-    displayWin = window.open('screen.html?v=202610270210', 'aiKazuoScreen', feat);
+    displayWin = window.open('screen.html?v=202610270226', 'aiKazuoScreen', feat);
     if (!displayWin) {
       notice(found.asked
         ? '許可ありがとうございます。もう一度「投影開始」を押してください。'
@@ -218,9 +218,17 @@
   bindCheck('videoSound', 'videoSound', applyVideoAudio);
   bindRange('videoVolume', 'videoVolume', function (v) { return Math.round(v * 100) + '%'; }, applyVideoAudio);
 
+  // 右上のマイク・スピーカーのオン/オフ表示（オフの時は取り消し線とうすい表示）
+  function setSwitch(id, on) {
+    var b = $(id);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.parentNode.classList.toggle('off', !on);
+  }
+
   function applyOutput() {
     AudioEngine.setOutput(S.voiceOut, S.volume, state.muted);
-    $('spkToggle').classList.toggle('on', S.voiceOut);
+    setSwitch('spkToggle', S.voiceOut);
   }
 
   // ===== 声のプリセット =====
@@ -546,7 +554,7 @@
       applyOutput();
       if (S.outId) { try { await AudioEngine.setSink(S.outId); } catch (e) { /* 既定に戻る */ } }
       if (!AudioEngine.hasPitchShift()) notice('このページの開き方では声の高さを変えられません。URLで開いてください。');
-      $('micToggle').classList.add('on');
+      setSwitch('micToggle', true);
       await refreshDevices();
       renderPresets();
       return true;
@@ -566,7 +574,7 @@
   $('micToggle').addEventListener('click', function () {
     if (AudioEngine.isRunning()) {
       AudioEngine.stop();
-      $('micToggle').classList.remove('on');
+      setSwitch('micToggle', false);
     } else {
       startMic();
     }
@@ -779,6 +787,7 @@
   // ===== 起動 =====
   renderPresets();
   renderStage();
+  setSwitch('micToggle', false);
   applyOutput();
   refreshDevices();
   setExpression(S.expression);

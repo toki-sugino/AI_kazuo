@@ -47,6 +47,13 @@ html, body {
 .split:has(.caret[hidden]) > button:first-child { border-radius: 7px; }
 .split > button.on { background: #3a1016; border-color: #ff4d5e; color: #ffd9dd; }
 
+/* オフの時：文字に取り消し線、●は灰色の輪、▾ のパネルもうすく */
+.split.off > button:first-child { color: #6f7aa3; text-decoration: line-through; text-decoration-thickness: 2px; background: #0e1430; border-color: #26325e; }
+.split.off .caret { color: #6f7aa3; background: #0e1430; border-color: #26325e; }
+.split.off .dot::before { background: transparent; box-shadow: inset 0 0 0 1.5px #6f7aa3; }
+.split.off .menu > label { opacity: .5; }
+.split.off .menu > label:hover, .split.off .menu > label:focus-within { opacity: 1; }
+
 .menu {
   position: absolute;
   right: 0;

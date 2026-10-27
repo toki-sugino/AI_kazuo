@@ -18,7 +18,7 @@ window.CHARACTER = {
   },
   expressions: {
     normal: {
-      src: 'characters/normal.svg?v=202610270210',
+      src: 'characters/normal.svg?v=202610270226',
       width: 765,
       height: 1024,
       skin: '#cddcf6',
@@ -29,7 +29,7 @@ window.CHARACTER = {
       }
     },
     smile: {
-      src: 'characters/smile.svg?v=202610270210',
+      src: 'characters/smile.svg?v=202610270226',
       width: 765,
       height: 1024,
       skin: '#cadbf6',
@@ -40,7 +40,7 @@ window.CHARACTER = {
       }
     },
     think: {
-      src: 'characters/think.svg?v=202610270210',
+      src: 'characters/think.svg?v=202610270226',
       width: 765,
       height: 1024,
       skin: '#cbdcf6',
@@ -51,7 +51,7 @@ window.CHARACTER = {
       }
     },
     surprise: {
-      src: 'characters/surprise.svg?v=202610270210',
+      src: 'characters/surprise.svg?v=202610270226',
       width: 765,
       height: 1024,
       skin: '#cbdcf6',
@@ -62,7 +62,7 @@ window.CHARACTER = {
       }
     },
     assert: {
-      src: 'characters/assert.svg?v=202610270210',
+      src: 'characters/assert.svg?v=202610270226',
       width: 765,
       height: 1024,
       skin: '#c9dbf6',
