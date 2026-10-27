@@ -93,13 +93,13 @@
     if (kazuo) {
       document.body.classList.remove('kazuo-off');
       spinEl.classList.add('spinIn');
-      spinTimer = setTimeout(function () { spinEl.classList.remove('spinIn'); }, 1300);
+      spinTimer = setTimeout(function () { spinEl.classList.remove('spinIn'); }, 500);
     } else {
       spinEl.classList.add('spinOut');
       spinTimer = setTimeout(function () {
         document.body.classList.add('kazuo-off');
         spinEl.classList.remove('spinOut');
-      }, 720);
+      }, 370);
     }
   }
 
