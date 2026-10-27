@@ -105,6 +105,12 @@
     }
   }
 
+  // 客席に映っている（全画面で投影中・暗転していない）間は、プレビューを赤枠にする
+  var projecting = false;
+  function renderOnAir() {
+    $('previewBox').classList.toggle('onair', projecting && !state.off);
+  }
+
   function updateScreenStatus() {
     var now = performance.now();
     var scr = targets.filter(function (x) { return !x.preview && !x.win.closed && now - x.last < 5000; })[0];
@@ -112,6 +118,8 @@
     b.textContent = !scr ? '投影開始' : scr.fullscreen ? '投影中' : '全画面にする';
     b.classList.toggle('live', !!(scr && scr.fullscreen));
     b.classList.toggle('primary', !(scr && scr.fullscreen));
+    projecting = !!(scr && scr.fullscreen);
+    renderOnAir();
   }
   setInterval(updateScreenStatus, 1000);
 
@@ -642,6 +650,7 @@
   function setOffUi(off) {
     state.off = off;
     $('bootBtn').classList.toggle('active', off);
+    renderOnAir();
   }
 
   function toggleBoot() {

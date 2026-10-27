@@ -124,6 +124,12 @@ kbd {
   background: #000;
 }
 
+/* 客席に映っている間は赤枠 */
+#previewBox.onair {
+  border-color: #ff3b3b;
+  box-shadow: 0 0 0 2px #ff3b3b, 0 0 14px rgba(255, 59, 59, .45);
+}
+
 #preview {
   position: absolute;
   left: 0;

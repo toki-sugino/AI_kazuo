@@ -184,6 +184,11 @@ body.has-photo #photoFrame { animation: photoIn .9s cubic-bezier(.2, .8, .2, 1) 
 
 body.is-off #blackout { opacity: 1; }
 
+/* 操作画面のプレビューでは、暗転中も中身が見えるように黒い斜線を重ねるだけにする（投影画面は真っ黒のまま） */
+body.preview #blackout {
+  background: repeating-linear-gradient(-45deg, rgba(0, 0, 0, .78) 0 22px, rgba(0, 0, 0, .45) 22px 44px);
+}
+
 #screen.boot { animation: crtOn 1.1s cubic-bezier(.2, .7, .2, 1) both; }
 #screen.boot #charBounce { animation: holoIn 1.6s steps(1, end) both; }
 #charBounce.appear { animation: holoIn 1.1s steps(1, end) both; }
