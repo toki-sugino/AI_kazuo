@@ -8,7 +8,7 @@
 </head>
 <body>
   <div id="screen">
-    <!-- AIカズオモード：背景・キャラ・枠つきの画像/動画 -->
+    <!-- 背景・カズオ・枠つきの画像/動画 -->
     <div id="kazuoStage">
       <canvas id="bg"></canvas>
       <div id="photoWrap" aria-hidden="true">
@@ -18,15 +18,14 @@
         <div id="charBounce"></div>
       </div>
     </div>
-    <!-- 画像・動画モード：枠なしで画面いっぱい -->
+    <!-- 画像・動画を枠なしで画面いっぱいに -->
     <div id="fullMedia" aria-hidden="true"><div id="fullSlot"></div></div>
   </div>
   <div id="blackout"></div>
 
   <div id="hint">
-    <p id="hintMain">操作画面の「投影開始」を押すと全画面になります</p>
-    <p id="hintSub">うまくいかない時は、このウィンドウを液晶（プロジェクター）の画面に移してからクリックしてください。<br>
-      操作はパソコン側の「操作画面」で行います。</p>
+    <p id="hintMain">操作画面の「投影開始」で全画面になります</p>
+    <p id="hintSub">クリックしても全画面になります</p>
   </div>
 
   <script src="js/background.js"></script>

@@ -42,7 +42,7 @@
     expression: 'normal',
     charScale: 1,
     charY: 0,
-    mode: 'kazuo',        // kazuo＝AIカズオモード / media＝画像・動画モード
+    kazuo: true,          // カズオを出すか
     autoPlay: true,       // 動画は出したらすぐ再生する
     videoLoop: false,
     videoSound: true,

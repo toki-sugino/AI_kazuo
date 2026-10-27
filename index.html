@@ -8,151 +8,110 @@
 </head>
 <body>
   <header id="topbar">
-    <strong>AIカズオ 操作画面</strong>
-    <button id="openScreen" class="primary">投影開始（全画面） </button>
-    <span id="screenStatus" class="pill">投影画面：未接続</span>
-    <span class="seg" role="group" aria-label="モード">
-      <button id="modeKazuo">AIカズオ <kbd>K</kbd></button>
-      <button id="modeMedia">画像・動画 <kbd>P</kbd></button>
-    </span>
-    <span id="micPill" class="pill">マイク：停止中</span>
+    <strong>AIカズオ</strong>
+    <button id="openScreen" class="primary">投影開始</button>
+    <button id="micToggle" class="dot">マイク</button>
   </header>
   <p id="notice" hidden></p>
 
   <main id="layout">
-    <!-- 左：プレビューと本番中に使うボタン -->
-    <section id="liveCol">
-      <div class="card">
-        <h2>客席に映っている画面</h2>
-        <div id="previewBox"><iframe id="preview" src="screen.html?preview=1" title="投影画面のプレビュー" tabindex="-1"></iframe></div>
-        <div class="meter" title="入力レベル">
-          <div id="meterBar"></div>
-          <div id="meterThreshold"></div>
-        </div>
+    <!-- 客席に映っているもの と 本番で押すボタン -->
+    <section id="liveCol" class="card">
+      <div id="previewBox"><iframe id="preview" src="screen.html?preview=1" title="客席の画面" tabindex="-1"></iframe></div>
+      <div class="meter" title="マイクの音量（白い線を越えると口が動く）">
+        <div id="meterBar"></div>
+        <div id="meterThreshold"></div>
       </div>
 
-      <div class="card">
-        <h2>表情 <span class="keyhint">1〜5</span></h2>
-        <div class="btnGrid five" id="exprBtns"></div>
-        <h2>声 <span class="keyhint">Q W E R</span></h2>
-        <div class="btnGrid four" id="presetBtns"></div>
-        <div class="btnGrid three">
-          <button id="bootBtn">暗転 / 起動 <kbd>B</kbd></button>
-          <button id="muteBtn">ミュート <kbd>M</kbd></button>
-          <button id="testMouth">テスト口パク <kbd>T</kbd></button>
-        </div>
+      <div class="btnGrid three stage">
+        <button id="kazuoBtn" class="toggle">カズオ <kbd>K</kbd></button>
+        <button id="fullBtn" class="toggle">画像を全画面 <kbd>F</kbd></button>
+        <button id="bootBtn" class="toggle">暗転 <kbd>B</kbd></button>
+      </div>
+
+      <div class="btnGrid five" id="exprBtns"></div>
+      <div class="btnGrid four" id="presetBtns"></div>
+      <div class="btnGrid two">
+        <button id="muteBtn" class="toggle">ミュート <kbd>M</kbd></button>
+        <button id="testMouth">テスト口パク <kbd>T</kbd></button>
       </div>
     </section>
 
-    <!-- 中：画像・動画 -->
+    <!-- 画像・動画（カード全体にドラッグ＆ドロップできる） -->
     <section id="photoCol" class="card">
-      <h2>画像・動画 <span class="keyhint">← → で前後を出す ／ 0 で消す</span></h2>
-      <p id="mediaHint" class="modeHint"></p>
-      <div id="dropZone">
-        <p>ここに画像や動画をドラッグ＆ドロップ</p>
-        <label class="fileBtn">ファイルを選ぶ<input type="file" id="photoInput" accept="image/*,video/*" multiple hidden></label>
-        <p class="hint">このPCのブラウザの中にだけ保存されます（ネットには公開されません）。</p>
-      </div>
-      <div class="row">
+      <div class="colHead">
+        <h2>画像・動画</h2>
+        <label class="fileBtn">＋ 追加<input type="file" id="photoInput" accept="image/*,video/*" multiple hidden></label>
         <button id="hidePhoto">消す <kbd>0</kbd></button>
-        <span id="photoNow" class="muted">表示中：なし</span>
+      </div>
+      <div id="dropZone">
+        <ol id="photoList"></ol>
+        <p id="dropHint">ここにドラッグ＆ドロップ</p>
       </div>
 
       <div id="videoCtl" hidden>
         <div class="row">
-          <button id="vPlay" class="primary">▶ 再生 <kbd>Space</kbd></button>
-          <button id="vRestart">⏮ 最初から</button>
-          <span id="vTime" class="muted">0:00 / 0:00</span>
+          <button id="vPlay" class="primary">▶ <kbd>Space</kbd></button>
+          <button id="vRestart" title="最初から">⏮</button>
+          <input type="range" id="vSeek" min="0" max="1000" value="0" aria-label="再生位置">
+          <span id="vTime">0:00 / 0:00</span>
         </div>
-        <input type="range" id="vSeek" min="0" max="1000" value="0" aria-label="再生位置">
         <div class="row">
           <label class="check"><input type="checkbox" id="videoLoop"> くり返し</label>
-          <label class="check"><input type="checkbox" id="videoSound"> 動画の音を出す</label>
+          <label class="check"><input type="checkbox" id="videoSound"> 音</label>
+          <input type="range" id="videoVolume" min="0" max="1" step="0.05" aria-label="動画の音量">
+          <output id="videoVolumeOut"></output>
         </div>
-        <label>動画の音量 <output id="videoVolumeOut"></output>
-          <input type="range" id="videoVolume" min="0" max="1" step="0.05">
-        </label>
-        <p id="videoWarn" class="hint warnText" hidden>音付きで再生できなかったので、音なしで再生しています。この画面をどこか1回クリックしてから、もう一度再生してください。</p>
       </div>
-      <label class="check"><input type="checkbox" id="autoPlay"> 動画は出したらすぐ再生する</label>
-
-      <ol id="photoList"></ol>
+      <label class="check small"><input type="checkbox" id="autoPlay"> 動画は出したら再生</label>
       <!-- 動画の音はここで鳴らす（映像は投影画面） -->
       <video id="audioVideo" hidden playsinline></video>
     </section>
 
-    <!-- 右：設定 -->
+    <!-- 設定 -->
     <aside id="settingsCol" class="card">
       <h2>マイク</h2>
-      <div class="row">
-        <button id="micToggle">マイク開始</button>
-        <span id="micStatus" class="muted">停止中</span>
-      </div>
-      <label>使うマイク
-        <select id="micSelect"><option value="">既定のマイク</option></select>
-      </label>
-      <label class="check"><input type="checkbox" id="noiseSuppression"> ノイズ抑制（客席のざわざわを減らす）</label>
-      <label>マイク感度 <output id="micGainOut"></output>
+      <select id="micSelect" aria-label="使うマイク"><option value="">既定のマイク</option></select>
+      <label class="check"><input type="checkbox" id="noiseSuppression"> ノイズ抑制</label>
+      <label>感度 <output id="micGainOut"></output>
         <input type="range" id="micGain" min="-12" max="24" step="1">
       </label>
-      <label>反応しきい値（上げると小さい音に反応しない） <output id="thresholdOut"></output>
+      <label>しきい値 <output id="thresholdOut"></output>
         <input type="range" id="threshold" min="-85" max="-15" step="1">
       </label>
-      <p class="hint">左上のメーターの緑の棒が白い線を越えると口が動きます。</p>
 
       <h2>口パク</h2>
-      <label>口の開きやすさ <output id="rangeOut"></output>
+      <label>開きやすさ <output id="rangeOut"></output>
         <input type="range" id="range" min="8" max="45" step="1">
       </label>
       <label>口の大きさ <output id="mouthScaleOut"></output>
         <input type="range" id="mouthScale" min="0.4" max="1.6" step="0.05">
       </label>
 
-      <h2>声（ボイスチェンジャー）</h2>
-      <label class="check warn"><input type="checkbox" id="voiceOut"> PCから声を出す（スピーカーへ）</label>
-      <p class="hint">ハウリング（キーン音）に注意。最初はヘッドホンで確認してください。</p>
-      <label id="outSelectLabel">音を出す先
-        <select id="outSelect"><option value="">既定のスピーカー</option></select>
-      </label>
+      <h2>声</h2>
+      <label class="check warn"><input type="checkbox" id="voiceOut"> PCから声を出す</label>
+      <select id="outSelect" aria-label="音を出す先"><option value="">既定のスピーカー</option></select>
       <label>音量 <output id="volumeOut"></output>
         <input type="range" id="volume" min="0" max="1.5" step="0.05">
       </label>
-      <p class="hint" id="presetName"></p>
+      <label class="check"><input type="checkbox" id="gate"> 小さい音は流さない</label>
+      <h3 id="presetName"></h3>
       <div id="presetSliders"></div>
-      <div class="row">
-        <button id="presetReset">この声を初期設定に戻す</button>
-      </div>
-      <label class="check"><input type="checkbox" id="gate"> 小さい音は流さない（ゲート）</label>
+      <button id="presetReset">この声を初期設定に戻す</button>
 
-      <h2>キャラの位置</h2>
+      <h2>カズオの位置</h2>
       <label>大きさ <output id="charScaleOut"></output>
         <input type="range" id="charScale" min="0.5" max="1.6" step="0.02">
       </label>
       <label>上下 <output id="charYOut"></output>
         <input type="range" id="charY" min="-40" max="40" step="1">
       </label>
-
-      <h2>キー操作</h2>
-      <table class="keys">
-        <tr><td>1〜5</td><td>表情（1 通常 / 2 笑顔 / 3 悩み / 4 驚き / 5 断定）</td></tr>
-        <tr><td>Q W E R</td><td>声（Q 素の声 / W AIの声 / E 高い声 / R 高いAIの声）</td></tr>
-        <tr><td>K</td><td>AIカズオモード（画像・動画はカズオの横の枠に出る）</td></tr>
-        <tr><td>P</td><td>画像・動画モード（枠なしで画面いっぱい）</td></tr>
-        <tr><td>← →</td><td>前 / 次の画像・動画を出す</td></tr>
-        <tr><td>0</td><td>画像・動画を消す</td></tr>
-        <tr><td>Space</td><td>動画の再生 / 一時停止</td></tr>
-        <tr><td>B</td><td>暗転 ⇔ 起動演出</td></tr>
-        <tr><td>M</td><td>ミュート（口も声も止める）</td></tr>
-        <tr><td>T（長押し）</td><td>テスト口パク</td></tr>
-      </table>
-      <p class="hint">投影画面を選んでいる時にキーを押しても、ここで押したのと同じになります（F だけは投影画面の全画面切り替え）。</p>
     </aside>
   </main>
 
   <!-- 最初に出る開始カード -->
   <div id="startCard">
     <h1>AIカズオ</h1>
-    <p>マイクの音に合わせて口が動きます。<br>ブラウザに「マイクの使用」を聞かれたら「許可」を押してください。</p>
     <button id="startMic" class="primary">マイクを使って開始</button>
     <button id="startNoMic">マイクなしで開始</button>
     <p id="startError" class="error"></p>

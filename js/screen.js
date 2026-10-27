@@ -1,6 +1,6 @@
 // 投影画面：操作画面から届く指示どおりに、キャラ・画像/動画・暗転を表示する
 //   操作画面の「投影開始」から開く（またはプレビューとして操作画面に埋め込まれる）
-//   モード：kazuo＝AIカズオ（画像/動画は枠の中）、media＝画像・動画を枠なしで画面いっぱい
+//   カズオのオン/オフ × 画像・動画のオン/オフで並びが決まる。画像・動画は枠なしの全画面にもできる
 (function () {
   'use strict';
 
@@ -18,7 +18,8 @@
   var st = { open: 0, bright: 0.5, level: 0 };
   var lastFrame = 0;
   var off = false;
-  var mode = 'kazuo';
+  var kazuo = true;      // カズオを出すか
+  var full = false;      // 画像・動画を枠なしで画面いっぱいにするか
   var media = { id: null, kind: null, el: null, url: null };
 
   function send(m) {
@@ -30,7 +31,7 @@
   //   操作画面を読み込み直した時は、こちらの状態を引き継いでもらう
   function hello() {
     send({
-      t: 'hello', preview: preview, age: performance.now(), off: off, mode: mode,
+      t: 'hello', preview: preview, age: performance.now(), off: off, kazuo: kazuo, full: full,
       mediaId: media.id, fullscreen: !!document.fullscreenElement
     });
   }
@@ -39,6 +40,7 @@
 
   if (!control) {
     $('hintMain').textContent = '操作画面の「投影開始」から開いてください';
+    $('hintSub').textContent = '';
   }
 
   // ===== 指示を受け取る =====
@@ -69,13 +71,24 @@
     r.setProperty('--char-scale', m.charScale);
     r.setProperty('--char-y', m.charY + 'vh');
     if (m.off !== off) setOff(m.off, false);
-    if (m.mode && m.mode !== mode) setMode(m.mode);
+    if (m.kazuo !== kazuo) setKazuo(m.kazuo !== false);
+    if (!!m.full !== full) setFull(!!m.full);
   }
 
-  // ===== モード =====
-  function setMode(next) {
-    mode = next === 'media' ? 'media' : 'kazuo';
-    document.body.classList.toggle('mode-media', mode === 'media');
+  // ===== カズオのオン/オフ =====
+  function setKazuo(on) {
+    kazuo = on;
+    document.body.classList.toggle('kazuo-off', !kazuo);
+    if (kazuo) {
+      var cb = $('charBounce');
+      cb.classList.remove('appear'); void cb.offsetWidth; cb.classList.add('appear');
+    }
+  }
+
+  // ===== 枠なしの全画面 =====
+  function setFull(on) {
+    full = on;
+    document.body.classList.toggle('media-full', full);
     if (media.el) placeMedia(true);
   }
 
@@ -95,7 +108,7 @@
         if (old.el) { if (old.kind === 'video') old.el.pause(); old.el.remove(); }
         if (old.url) URL.revokeObjectURL(old.url);
       };
-      if (mode === 'kazuo') {
+      if (!full) {
         frameEl.classList.add('out');
         outTimer = setTimeout(done, 450);
       } else {
@@ -122,10 +135,10 @@
     placeMedia(true);
   }
 
-  // 今のモードに合わせて、枠の中か画面いっぱいに置く（動画は再生したまま移せる）
+  // 枠の中か画面いっぱいに置く（動画は再生したまま移せる）
   function placeMedia(animate) {
     var el = media.el;
-    if (mode === 'media') {
+    if (full) {
       if (el.parentNode !== fullSlot) fullSlot.appendChild(el);
       document.body.classList.add('has-photo');
       if (animate) { el.classList.remove('in'); void el.offsetWidth; el.classList.add('in'); }
@@ -189,14 +202,10 @@
     hello();
   });
 
-  // キー操作は操作画面へ回す（F だけはこの画面の全画面切り替え）
+  // キー操作は操作画面へ回す
   function forwardKey(type) {
     return function (e) {
       if (preview) return;
-      if (type === 'down' && e.key.toLowerCase() === 'f' && !e.repeat) {
-        if (document.fullscreenElement) document.exitFullscreen(); else goFullscreen();
-        return;
-      }
       if (e.key === ' ' || /^Arrow/.test(e.key)) e.preventDefault();
       send({ t: 'key', type: type, key: e.key, code: e.code, repeat: e.repeat });
     };
@@ -222,9 +231,9 @@
     var t = now / 1000;
     // 操作画面からの音量が途切れたら口を閉じる
     if (now - lastFrame > 400) { st.open *= 0.8; st.level *= 0.9; }
-    if (mode === 'kazuo') {  // 画像・動画モードの間はキャラを描かない（動画をなめらかにするため）
+    if (!(full && media.el)) {  // 画面いっぱいに出している間は描かない（動画をなめらかにするため）
       Background.draw(t, dt, st.level);
-      TracedChar.update(t, dt, st);
+      if (kazuo) TracedChar.update(t, dt, st);
     }
     requestAnimationFrame(frame);
   }

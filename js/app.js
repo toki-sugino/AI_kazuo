@@ -1,4 +1,4 @@
-// 操作画面：マイク・声・表情・画像/動画・モード・暗転を操作し、投影画面へ指示を送る
+// 操作画面：マイク・声・表情・カズオのオン/オフ・画像/動画・暗転を操作し、投影画面へ指示を送る
 (function () {
   'use strict';
 
@@ -23,7 +23,8 @@
     db: -100,
     gateOpenUntil: 0,
     off: false,
-    mediaId: null
+    mediaId: null,
+    full: false       // 画像・動画を枠なしで画面いっぱいにしているか
   };
 
   function save() { Settings.save(S); }
@@ -65,7 +66,9 @@
 
   function adoptScreenState(m) {
     if (m.off !== state.off) setOffUi(!!m.off);
-    if (m.mode && m.mode !== S.mode) { S.mode = m.mode; save(); renderMode(); }
+    if (typeof m.kazuo === 'boolean' && m.kazuo !== S.kazuo) { S.kazuo = m.kazuo; save(); }
+    state.full = !!m.full;
+    renderStage();
     if (m.mediaId !== state.mediaId) {
       state.mediaId = m.mediaId == null ? null : m.mediaId;
       var it = itemById(state.mediaId);
@@ -85,7 +88,10 @@
   }
 
   function stateMsg() {
-    return { t: 'state', mode: S.mode, expression: S.expression, charScale: S.charScale, charY: S.charY, off: state.off };
+    return {
+      t: 'state', kazuo: S.kazuo, full: state.full && state.mediaId != null,
+      expression: S.expression, charScale: S.charScale, charY: S.charY, off: state.off
+    };
   }
 
   function sendState() { sendAll(stateMsg()); }
@@ -102,11 +108,10 @@
   function updateScreenStatus() {
     var now = performance.now();
     var scr = targets.filter(function (x) { return !x.preview && !x.win.closed && now - x.last < 5000; })[0];
-    var el = $('screenStatus');
-    el.textContent = !scr ? '投影画面：未接続' : scr.fullscreen ? '投影画面：全画面で投影中' : '投影画面：接続中（全画面ではない）';
-    el.classList.toggle('on', !!(scr && scr.fullscreen));
-    el.classList.toggle('warn', !!(scr && !scr.fullscreen));
-    $('openScreen').firstChild.textContent = !scr ? '投影開始（全画面） ' : scr.fullscreen ? '投影中 ' : '全画面にする ';
+    var b = $('openScreen');
+    b.textContent = !scr ? '投影開始' : scr.fullscreen ? '投影中' : '全画面にする';
+    b.classList.toggle('live', !!(scr && scr.fullscreen));
+    b.classList.toggle('primary', !(scr && scr.fullscreen));
   }
   setInterval(updateScreenStatus, 1000);
 
@@ -233,7 +238,7 @@
       b.addEventListener('click', function () { setPreset(id); });
       box.appendChild(b);
     });
-    $('presetName').textContent = '「' + Settings.PRESETS[S.preset].label + '」の調整：';
+    $('presetName').textContent = Settings.PRESETS[S.preset].label;
     var sl = $('presetSliders');
     sl.innerHTML = '';
     var p = S.presets[S.preset];
@@ -283,7 +288,8 @@
     box.innerHTML = '';
     Settings.EXPRESSIONS.forEach(function (e) {
       var b = document.createElement('button');
-      b.appendChild(document.createTextNode(e.label + (hasExpression(e.id) ? '' : '（未）')));
+      b.appendChild(document.createTextNode(e.label));
+      b.disabled = !hasExpression(e.id);
       var k = document.createElement('kbd');
       k.textContent = e.key;
       b.appendChild(k);
@@ -301,24 +307,28 @@
     sendState();
   }
 
-  // ===== モード =====
-  function setMode(m) {
-    S.mode = m === 'media' ? 'media' : 'kazuo';
+  // ===== カズオのオン/オフ・枠なしの全画面 =====
+  function setKazuo(on) {
+    S.kazuo = on;
     save();
-    renderMode();
+    renderStage();
     sendState();
   }
 
-  function renderMode() {
-    $('modeKazuo').classList.toggle('active', S.mode === 'kazuo');
-    $('modeMedia').classList.toggle('active', S.mode === 'media');
-    document.body.classList.toggle('mode-media', S.mode === 'media');
-    $('mediaHint').textContent = S.mode === 'media'
-      ? '画像・動画モード：枠なしで画面いっぱいに出ます'
-      : 'AIカズオモード：カズオの横の枠の中に出ます';
+  function setFull(on) {
+    state.full = on && state.mediaId != null;
+    renderStage();
+    sendState();
   }
-  $('modeKazuo').addEventListener('click', function () { setMode('kazuo'); });
-  $('modeMedia').addEventListener('click', function () { setMode('media'); });
+
+  function renderStage() {
+    $('kazuoBtn').classList.toggle('active', S.kazuo);
+    $('fullBtn').classList.toggle('active', state.full);
+    $('fullBtn').disabled = state.mediaId == null;
+    document.body.classList.toggle('kazuo-off', !S.kazuo);
+  }
+  $('kazuoBtn').addEventListener('click', function () { setKazuo(!S.kazuo); });
+  $('fullBtn').addEventListener('click', function () { setFull(!state.full); });
 
   // ===== 画像・動画 =====
   var items = [];   // { id, name, blob, url, kind }
@@ -384,8 +394,9 @@
       });
       ol.appendChild(li);
     });
-    var cur = itemById(state.mediaId);
-    $('photoNow').textContent = '表示中：' + (cur ? (items.indexOf(cur) + 1) + '. ' + cur.name : 'なし');
+    $('dropZone').classList.toggle('empty', !items.length);
+    $('hidePhoto').disabled = state.mediaId == null;
+    renderStage();
     renderVideoControls();
   }
 
@@ -402,6 +413,7 @@
     state.mediaId = null;
     unloadPlayer();
     sendAll({ t: 'media', id: null });
+    if (state.full) setFull(false);
     renderMedia();
   }
 
@@ -476,12 +488,12 @@
     if (player.ended) player.currentTime = 0;
     applyVideoAudio();
     player.play().then(function () {
-      if (!player.muted || !S.videoSound) $('videoWarn').hidden = true;
+      if (!player.muted || !S.videoSound) notice('');
     }).catch(function () {
       // 音付きで再生できない時は、音なしで映像だけ進める
       player.muted = true;
       player.play().catch(function () { /* 無視 */ });
-      $('videoWarn').hidden = false;
+      notice('動画の音が出せませんでした。この画面を1回クリックしてから、もう一度再生してください。');
     });
     sendVideo();
   }
@@ -512,7 +524,7 @@
   function renderVideoControls() {
     $('videoCtl').hidden = !playerItem;
     if (!playerItem) return;
-    $('vPlay').firstChild.textContent = player.paused || player.ended ? '▶ 再生 ' : '⏸ 一時停止 ';
+    $('vPlay').firstChild.textContent = player.paused || player.ended ? '▶ ' : '⏸ ';
     renderVideoTime();
   }
 
@@ -527,19 +539,14 @@
 
   // ===== マイク =====
   async function startMic() {
-    $('micStatus').textContent = '開始中…';
     try {
       await AudioEngine.start({ deviceId: S.micId, noiseSuppression: S.noiseSuppression });
       AudioEngine.setMicGain(S.micGainDb);
       AudioEngine.applyPreset(S.presets[S.preset]);
       applyOutput();
       if (S.outId) { try { await AudioEngine.setSink(S.outId); } catch (e) { /* 既定に戻る */ } }
-      $('micStatus').textContent = AudioEngine.hasPitchShift() ? '動作中'
-        : location.protocol === 'file:' ? '動作中（ファイルを直接開いているため声の高さは変えられません。URLで開いてください）'
-          : '動作中（このブラウザでは声の高さを変えられません）';
-      $('micToggle').textContent = 'マイク停止';
-      $('micPill').textContent = 'マイク：動作中';
-      $('micPill').classList.add('on');
+      if (!AudioEngine.hasPitchShift()) notice('このページの開き方では声の高さを変えられません。URLで開いてください。');
+      $('micToggle').classList.add('on');
       await refreshDevices();
       renderPresets();
       return true;
@@ -550,7 +557,7 @@
         : e && e.name === 'NotFoundError'
           ? 'マイクが見つかりません。マイクがつながっているか確認してください。'
           : 'マイクを開始できませんでした: ' + (e && e.message ? e.message : e);
-      $('micStatus').textContent = msg;
+      notice(msg);
       $('startError').textContent = msg;
       return false;
     }
@@ -559,10 +566,7 @@
   $('micToggle').addEventListener('click', function () {
     if (AudioEngine.isRunning()) {
       AudioEngine.stop();
-      $('micToggle').textContent = 'マイク開始';
-      $('micStatus').textContent = '停止中';
-      $('micPill').textContent = 'マイク：停止中';
-      $('micPill').classList.remove('on');
+      $('micToggle').classList.remove('on');
     } else {
       startMic();
     }
@@ -574,7 +578,7 @@
     if (AudioEngine.canSelectOutput()) {
       fillSelect($('outSelect'), d.outputs, S.outId, '既定のスピーカー');
     } else {
-      $('outSelectLabel').hidden = true;
+      $('outSelect').hidden = true;
     }
   }
 
@@ -604,7 +608,7 @@
   $('outSelect').addEventListener('change', async function () {
     S.outId = $('outSelect').value;
     save();
-    try { await AudioEngine.setSink(S.outId); } catch (e) { $('micStatus').textContent = '音を出す先を切り替えられませんでした'; }
+    try { await AudioEngine.setSink(S.outId); } catch (e) { notice('音を出す先を切り替えられませんでした'); }
     applyVideoAudio();
   });
 
@@ -637,8 +641,7 @@
 
   function setOffUi(off) {
     state.off = off;
-    $('bootBtn').classList.toggle('off', off);
-    $('bootBtn').firstChild.textContent = off ? '暗転中 → 起動 ' : '暗転 / 起動 ';
+    $('bootBtn').classList.toggle('active', off);
   }
 
   function toggleBoot() {
@@ -666,8 +669,8 @@
     if (k === 'arrowright') { stepMedia(1); return true; }
     if (k === 'arrowleft') { stepMedia(-1); return true; }
     if (k === ' ') { togglePlay(); return true; }
-    if (k === 'k') { setMode('kazuo'); return true; }
-    if (k === 'p') { setMode('media'); return true; }
+    if (k === 'k') { setKazuo(!S.kazuo); return true; }
+    if (k === 'f') { setFull(!state.full); return true; }
     if (k === 'b') { toggleBoot(); return true; }
     if (k === 'm') { setMuted(!state.muted); return true; }
     return false;
@@ -730,7 +733,7 @@
 
   // ===== 起動 =====
   renderPresets();
-  renderMode();
+  renderStage();
   setExpression(S.expression);
   loadMedia();
   requestAnimationFrame(draw);
